@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_scanner_qt_FILE /Users/darasmirnova/Desktop/zxing_scanner/build/scanner_qt)
+set(__QT_DEPLOY_TARGET_scanner_qt_TYPE EXECUTABLE)
