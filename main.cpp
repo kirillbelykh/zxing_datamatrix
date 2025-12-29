@@ -150,6 +150,23 @@ cv::Rect makeSquareROI(const cv::Rect& r, const cv::Size& bounds, float padding 
     return cv::Rect(x, y, size, size);
 }
 
+// --- dev/test: reset TEST_AGGREGATIONS on backend ---
+bool sendTestReset()
+{
+    httplib::Client cli("http://127.0.0.1:8000");
+    cli.set_connection_timeout(5);
+    cli.set_read_timeout(5);
+
+    auto res = cli.Post("/api/v1/camera/scan/aggregation/test/reset");
+
+    if (!res || res->status != 200) {
+        std::cerr << "❌ Failed to reset TEST_AGGREGATIONS\n";
+        return false;
+    }
+
+    return true;
+}
+
 int main()
 {
     // --- GLFW initialization ---
@@ -236,6 +253,10 @@ int cameraIndex = 0;
     auto scanStartTime = std::chrono::steady_clock::time_point{};
     bool timingStopped = false;
     auto scanEndTime = std::chrono::steady_clock::time_point{};
+
+    // --- Коробочные метрики ---
+    float lastBoxScanTimeSec = 0.0f;
+    int lastBoxCodesCount = 0;
 
     std::vector<std::string> scannedCodes;
     ScannerState state = ScannerState::SCANNING;
@@ -505,6 +526,16 @@ int cameraIndex = 0;
             AggregationResult res = sendAggregation(scannedCodes, ui_sscc, ui_order_id);
             lastAggResult = res;
 
+            // сохранить метрики текущей коробки
+            if (timingStarted) {
+                auto endTime = timingStopped ? scanEndTime : std::chrono::steady_clock::now();
+                lastBoxScanTimeSec =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(endTime - scanStartTime).count() / 1000.0f;
+            } else {
+                lastBoxScanTimeSec = 0.0f;
+            }
+            lastBoxCodesCount = static_cast<int>(scannedCodes.size());
+
             if (res == AggregationResult::OK) {
                 boxCounter++;
                 state = ScannerState::DONE;
@@ -551,6 +582,21 @@ int cameraIndex = 0;
         float aspect = (float)frame.rows / (float)frame.cols;
         ImVec2 imageSize(availWidth, availWidth * aspect);
         ImGui::Image((void*)(intptr_t)tex, imageSize);
+
+        // --- нижняя панель статистики коробки ---
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::PushStyleColor(ImGuiCol_Text, C_DIM);
+        ImGui::Text("Текущая коробка");
+        ImGui::PopStyleColor();
+
+        if (lastBoxCodesCount > 0) {
+            ImGui::Text("Кодов отсканировано: %d / 10", lastBoxCodesCount);
+            ImGui::Text("Время сканирования: %.2f сек", lastBoxScanTimeSec);
+        } else {
+            ImGui::Text("Ожидание начала сканирования…");
+        }
+
         ImGui::End();
 
         // Info panel
@@ -699,12 +745,6 @@ int cameraIndex = 0;
             }
         }
 
-        // Кнопка ТЕСТ
-        if (ImGui::Button("ТЕСТ", ImVec2(-1, 36))) {
-            scannedCodes = { "TEST1","TEST2","TEST3","TEST4","TEST5","TEST6","TEST7","TEST8","TEST9","TEST10" };
-            scanIndex = 10;
-            state = ScannerState::READY;
-        }
 
         // ACTION
         if (state == ScannerState::SENDING)
@@ -725,6 +765,31 @@ int cameraIndex = 0;
             ui_sscc.clear();
             ui_order_id = -1;
             lastAggResult = AggregationResult::NONE;
+            lastBoxScanTimeSec = 0.0f;
+            lastBoxCodesCount = 0;
+        }
+
+        if (ImGui::Button("♻ СБРОС (тест)", ImVec2(-1, 36))) {
+            if (sendTestReset()) {
+                std::cout << "♻ TEST_AGGREGATIONS reset\n";
+                // локальный сброс тоже делаем для чистоты
+                seen.clear();
+                scannedCodes.clear();
+                scanIndex = 0;
+                timingStarted = timingStopped = false;
+                scanStartTime = scanEndTime = {};
+                state = ScannerState::SCANNING;
+                justReset = true;
+                adaptiveMode = false;
+                std::fill(cellResolved.begin(), cellResolved.end(), false);
+                auto now = std::chrono::steady_clock::now();
+                std::fill(cellStartTime.begin(), cellStartTime.end(), now);
+                ui_sscc.clear();
+                ui_order_id = -1;
+                lastAggResult = AggregationResult::NONE;
+                lastBoxScanTimeSec = 0.0f;
+                lastBoxCodesCount = 0;
+            }
         }
 
         if (state == ScannerState::SENDING)
@@ -759,6 +824,8 @@ int cameraIndex = 0;
             std::fill(cellResolved.begin(), cellResolved.end(), false);
             auto now = std::chrono::steady_clock::now();
             std::fill(cellStartTime.begin(), cellStartTime.end(), now);
+            lastBoxScanTimeSec = 0.0f;
+            lastBoxCodesCount = 0;
             std::cout << "🔄 Scan reset — ready for new box\n";
         }
         if (key >= '0' && key <= '9') {
