@@ -25,6 +25,27 @@ enum class ScannerState {
     ERROR
 };
 
+enum class AggregationResult {
+    NONE,
+    OK,
+    ALREADY_EXISTS,
+    ERROR
+};
+
+enum class SendMode {
+    AUTO,
+    MANUAL
+};
+
+struct BoxQueueItem {
+    int box_id;
+    std::string sscc;
+    int order_id;
+    ScannerState state;
+};
+
+std::vector<BoxQueueItem> boxQueue;
+
 const char* stateToStr(ScannerState s)
 {
     switch (s) {
@@ -38,7 +59,11 @@ const char* stateToStr(ScannerState s)
 }
 
 // Send aggregation request to FastAPI server
-bool sendAggregation(const std::vector<std::string>& codes)
+AggregationResult sendAggregation(
+    const std::vector<std::string>& codes,
+    std::string& out_sscc,
+    int& out_order_id
+)
 {
     using json = nlohmann::json;
 
@@ -56,25 +81,29 @@ bool sendAggregation(const std::vector<std::string>& codes)
         "application/json"
     );
 
+    out_sscc.clear();
+    out_order_id = -1;
+
     if (!res) {
-        std::cerr << "❌ FastAPI not reachable\n";
-        return false;
+        return AggregationResult::ERROR;
     }
 
     if (res->status != 200) {
-        std::cerr << "❌ FastAPI error " << res->status << ":\n"
-                  << res->body << std::endl;
-        return false;
+        return AggregationResult::ERROR;
     }
 
     auto response = json::parse(res->body);
+    std::string status = response.value("status", "");
+    out_sscc = response.value("sscc_code", "");
+    out_order_id = response.value("order_id", -1);
+    bool success = response.value("success", false);
 
-    std::cout << "✅ Aggregation started\n";
-    std::cout << "Box ID: " << response.value("box_id", -1) << std::endl;
-    std::cout << "SSCC: " << response.value("sscc_code", "") << std::endl;
-    std::cout << "Order ID: " << response.value("order_id", -1) << std::endl;
-
-    return true;
+    if (status == "OK")
+        return AggregationResult::OK;
+    else if (status == "ALREADY_EXISTS")
+        return AggregationResult::ALREADY_EXISTS;
+    else
+        return AggregationResult::ERROR;
 }
 
 GLuint matToTexture(const cv::Mat& mat)
@@ -209,8 +238,16 @@ int cameraIndex = 0;
     auto scanEndTime = std::chrono::steady_clock::time_point{};
 
     std::vector<std::string> scannedCodes;
-ScannerState state = ScannerState::SCANNING;
-bool justReset = false;
+    ScannerState state = ScannerState::SCANNING;
+    bool justReset = false;
+
+    // --- UI state ---
+    SendMode sendMode = SendMode::AUTO;
+    AggregationResult lastAggResult = AggregationResult::NONE;
+    std::string ui_sscc;
+    int ui_order_id = -1;
+    int boxCounter = 0;
+    int targetBoxes = 10;
     bool adaptiveMode = false;
     cv::Rect lastAdaptiveROI;
 
@@ -459,24 +496,41 @@ bool justReset = false;
         // removed OpenCV text overlays
 
         // --- State machine: handle READY state ---
-        if (state == ScannerState::READY) {
+        if (state == ScannerState::READY && sendMode == SendMode::AUTO) {
             state = ScannerState::SENDING;
-            std::cout << "📡 Sending aggregation request...\n";
+        }
 
-            bool ok = sendAggregation(scannedCodes);
-            if (ok) {
+        // --- State machine: handle SENDING state ---
+        if (state == ScannerState::SENDING) {
+            AggregationResult res = sendAggregation(scannedCodes, ui_sscc, ui_order_id);
+            lastAggResult = res;
+
+            if (res == AggregationResult::OK) {
+                boxCounter++;
                 state = ScannerState::DONE;
-                std::cout << "✅ State → DONE\n";
+            } else if (res == AggregationResult::ALREADY_EXISTS) {
+                state = ScannerState::DONE;
             } else {
-                // НЕ падаем в ERROR если все коды уже считаны
-                if (scanIndex >= 10) {
-                    state = ScannerState::DONE;
-                    std::cout << "⚠️ Aggregation failed, but scan SUCCESS (DONE)\n";
-                } else {
-                    state = ScannerState::ERROR;
-                    std::cout << "❌ State → ERROR\n";
-                }
+                state = ScannerState::ERROR;
             }
+
+            // Добавление в очередь коробок (OK и ALREADY_EXISTS)
+            if (res == AggregationResult::OK || res == AggregationResult::ALREADY_EXISTS) {
+                boxQueue.push_back({
+                    ui_order_id >= 0 ? boxCounter : boxCounter,
+                    ui_sscc,
+                    ui_order_id,
+                    res == AggregationResult::OK ? ScannerState::DONE : ScannerState::READY
+                });
+                if (boxQueue.size() > 20)
+                    boxQueue.erase(boxQueue.begin());
+            }
+
+            // очистка сканера после ответа
+            seen.clear();
+            scannedCodes.clear();
+            scanIndex = 0;
+            timingStarted = timingStopped = false;
         }
 
         // NOTE: do NOT clear 'seen' automatically; scanned codes must not be rescanned
@@ -505,15 +559,23 @@ bool justReset = false;
             ImGuiWindowFlags_NoScrollbar
         );
 
-        // STATUS
+        // STATUS (Russian UI)
         ImVec4 statusColor = C_ACCENT;
-        const char* statusText = stateToStr(state);
+        const char* uiStatus =
+            state == ScannerState::SCANNING ? "СКАНИРОВАНИЕ" :
+            state == ScannerState::READY    ? "ГОТОВО К ОТПРАВКЕ" :
+            state == ScannerState::SENDING  ? "ОБРАБОТКА" :
+            state == ScannerState::DONE     ?
+                (lastAggResult == AggregationResult::ALREADY_EXISTS
+                    ? "АГРЕГАТ УЖЕ БЫЛ НАПОЛНЕН"
+                    : "АГРЕГАЦИЯ ВЫПОЛНЕНА")
+            : "ОШИБКА";
         if (state == ScannerState::DONE) statusColor = C_SUCCESS;
         else if (state == ScannerState::READY || state == ScannerState::SENDING) statusColor = C_WARN;
         else if (state == ScannerState::ERROR) statusColor = C_ERROR;
 
         ImGui::PushStyleColor(ImGuiCol_Text, statusColor);
-        ImGui::Text("● %s", statusText);
+        ImGui::Text("● %s", uiStatus);
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
@@ -573,10 +635,45 @@ bool justReset = false;
 
         ImGui::Separator();
 
+        // Info Panel: SSCC, Order ID, Box Counter, Target
+        if (!ui_sscc.empty())
+            ImGui::Text("SSCC: %s", ui_sscc.c_str());
+        if (ui_order_id > 0)
+            ImGui::Text("Заказ: %d", ui_order_id);
+        ImGui::Text("Коробки: %d / %d", boxCounter, targetBoxes);
+        ImGui::SliderInt("Цель", &targetBoxes, 1, 500);
+        if (ImGui::Button("Обнулить счётчик")) {
+            boxCounter = 0;
+        }
+        if (ImGui::Button("Очистить очередь")) {
+            boxQueue.clear();
+        }
+
+        ImGui::Spacing();
+
+        ImGui::Separator();
+        ImGui::Text("Очередь коробок");
+        ImGui::BeginChild("box_queue", ImVec2(0, 180), true);
+        for (size_t i = 0; i < boxQueue.size(); ++i) {
+            const auto& box = boxQueue[i];
+            ImVec4 col =
+                box.state == ScannerState::DONE ? C_SUCCESS :
+                box.state == ScannerState::READY ? C_WARN :
+                C_DIM;
+            ImGui::PushStyleColor(ImGuiCol_Text, col);
+            ImGui::Text(
+                "#%zu | SSCC: %s | Заказ: %d",
+                i + 1,
+                box.sscc.c_str(),
+                box.order_id
+            );
+            ImGui::PopStyleColor();
+        }
+        ImGui::EndChild();
+
         // CODES (last 5)
         ImGui::Text("Последние коды");
         ImGui::BeginChild("codes", ImVec2(0, 200), true);
-
         int start = scannedCodes.size() > 5 ? scannedCodes.size() - 5 : 0;
         for (size_t i = start; i < scannedCodes.size(); ++i) {
             if (i == scannedCodes.size() - 1)
@@ -588,6 +685,26 @@ bool justReset = false;
         ImGui::EndChild();
 
         ImGui::Spacing();
+
+        // Управление режимом отправки
+        ImGui::Text("Режим отправки");
+        ImGui::RadioButton("Авто", (int*)&sendMode, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("По кнопке", (int*)&sendMode, 1);
+
+        // Кнопка "Отправить" (MANUAL + READY)
+        if (sendMode == SendMode::MANUAL && state == ScannerState::READY) {
+            if (ImGui::Button("Отправить", ImVec2(-1, 40))) {
+                state = ScannerState::SENDING;
+            }
+        }
+
+        // Кнопка ТЕСТ
+        if (ImGui::Button("ТЕСТ", ImVec2(-1, 36))) {
+            scannedCodes = { "TEST1","TEST2","TEST3","TEST4","TEST5","TEST6","TEST7","TEST8","TEST9","TEST10" };
+            scanIndex = 10;
+            state = ScannerState::READY;
+        }
 
         // ACTION
         if (state == ScannerState::SENDING)
@@ -605,6 +722,9 @@ bool justReset = false;
             std::fill(cellResolved.begin(), cellResolved.end(), false);
             auto now = std::chrono::steady_clock::now();
             std::fill(cellStartTime.begin(), cellStartTime.end(), now);
+            ui_sscc.clear();
+            ui_order_id = -1;
+            lastAggResult = AggregationResult::NONE;
         }
 
         if (state == ScannerState::SENDING)
