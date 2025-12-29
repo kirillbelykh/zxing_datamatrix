@@ -279,6 +279,8 @@ bool justReset = false;
 
         // --- Adaptive DM pass (preferred) ---
         if (adaptiveMode && state == ScannerState::SCANNING && !justReset) {
+            if (scanIndex >= 10)
+                break;
             cv::Mat roi = frame(lastAdaptiveROI).clone();
 
             cv::Mat gray;
@@ -330,7 +332,13 @@ bool justReset = false;
         }
         for (int r = 0; r < GRID_ROWS; ++r) {
             for (int c = 0; c < GRID_COLS; ++c) {
-                if ((state != ScannerState::SCANNING && state != ScannerState::DONE) || justReset)
+                // Scan ONLY in active SCANNING state
+                if (state != ScannerState::SCANNING || justReset)
+                    continue;
+
+                int idx = r * GRID_COLS + c;
+                // Do not spend CPU on already successful cells
+                if (cellResolved[idx])
                     continue;
 
                 int cx = bx + c * cellW;
@@ -341,34 +349,31 @@ bool justReset = false;
                 cv::Scalar gridColor(255, 255, 255); // IDLE = white
                 int thickness = GRID_THICKNESS;
 
-                int idx = r * GRID_COLS + c;
                 auto now = std::chrono::steady_clock::now();
 
-                if (cellResolved[idx]) {
-                    gridColor = cv::Scalar(0, 255, 0); // SUCCESS
-                    thickness = 3;
-                }
-                else {
-                    double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now - cellStartTime[idx]
+                // Защита: не запускать SCANNING для success
+                if (cellResolved[idx])
+                    continue;
+
+                double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now - cellStartTime[idx]
+                ).count() / 1000.0;
+
+                if (elapsed < 1.0) {
+                    // SCANNING → blinking green
+                    double t = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now.time_since_epoch()
                     ).count() / 1000.0;
 
-                    if (elapsed < 1.0) {
-                        // SCANNING → blinking green
-                        double t = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            now.time_since_epoch()
-                        ).count() / 1000.0;
-
-                        if (std::sin(t * 6.2831853) > 0) {
-                            gridColor = cv::Scalar(0, 255, 0);
-                            thickness = 3;
-                        }
-                    }
-                    else if (elapsed >= 1.0) {
-                        // FAILED → solid red
-                        gridColor = cv::Scalar(0, 0, 255);
+                    if (std::sin(t * 6.2831853) > 0) {
+                        gridColor = cv::Scalar(0, 255, 0);
                         thickness = 3;
                     }
+                }
+                else if (elapsed >= 1.0) {
+                    // FAILED → solid red
+                    gridColor = cv::Scalar(0, 0, 255);
+                    thickness = 3;
                 }
 
                 // РИСОВАНИЕ СЕТКИ — ТОЛЬКО ОДИН РАЗ
@@ -413,6 +418,10 @@ bool justReset = false;
                         if (ch != '(' && ch != ')')
                             normalized.push_back(ch);
                     }
+
+                    // HARD STOP: never scan more than 10
+                    if (scanIndex >= 10)
+                        break;
 
                     if (seen.find(normalized) != seen.end())
                         continue;
@@ -653,6 +662,12 @@ bool justReset = false;
             zoom = std::max(zoom - zoomStep, zoomMin);
             std::cout << "🔍 Zoom: " << zoom << "x\n";
         }
+
+        // activeCell logic: skip resolved cells (if used elsewhere, adapt as needed)
+        // Example: 
+        // do {
+        //     activeCell = (activeCell + 1) % (GRID_ROWS * GRID_COLS);
+        // } while (cellResolved[activeCell]);
 
         justReset = false;
 
