@@ -103,24 +103,6 @@ GLuint matToTexture(const cv::Mat& mat)
     return texture;
 }
 
-cv::Rect makeSquareROI(const cv::Rect& r, const cv::Size& bounds, float padding = 0.3f)
-{
-    int size = std::max(r.width, r.height);
-    int pad = static_cast<int>(size * padding);
-    size += pad * 2;
-
-    int cx = r.x + r.width / 2;
-    int cy = r.y + r.height / 2;
-
-    int x = std::max(0, cx - size / 2);
-    int y = std::max(0, cy - size / 2);
-
-    if (x + size > bounds.width)  size = bounds.width - x;
-    if (y + size > bounds.height) size = bounds.height - y;
-
-    return cv::Rect(x, y, size, size);
-}
-
 int main()
 {
     // --- GLFW initialization ---
@@ -183,10 +165,7 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 120");
 
-int cameraIndex = 0;
-    // Camera selector (simple indexed list)
-    const int MAX_CAMERAS = 2; // adjust if needed
-    int selectedCameraIndex = cameraIndex;
+    int cameraIndex = 0;
 
     cv::VideoCapture cap(cameraIndex, cv::CAP_AVFOUNDATION);
     if (!cap.isOpened()) {
@@ -209,52 +188,29 @@ int cameraIndex = 0;
     auto scanEndTime = std::chrono::steady_clock::time_point{};
 
     std::vector<std::string> scannedCodes;
-ScannerState state = ScannerState::SCANNING;
-bool justReset = false;
-    bool adaptiveMode = false;
-    cv::Rect lastAdaptiveROI;
+    ScannerState state = ScannerState::SCANNING;
+    bool justReset = false;
 
     double zoom = 1.0;          // 1.0 = no zoom
     const double zoomStep = 0.1;
     const double zoomMin = 1.0;
-    const double zoomMax = 2.0;
+    const double zoomMax = 3.0;
 
     // --- fixed box & grid configuration ---
     const int GRID_ROWS = 2;
     const int GRID_COLS = 5;
 
-    // Per-cell state for blinking red logic
-    std::vector<std::chrono::steady_clock::time_point> cellStartTime(
-        GRID_ROWS * GRID_COLS,
-        std::chrono::steady_clock::now()
-    );
-    std::vector<bool> cellResolved(GRID_ROWS * GRID_COLS, false);
-
     // Central box ROI as % of frame (tuned for fixed corner guides)
     const double BOX_W = 0.80;   // 80% width
     const double BOX_H = 0.90;   // 70% height
 
-    const double CELL_ZOOM = 2.0; // aggressive local zoom per cell
-
-    // --- CLAHE and preview brightness parameters ---
-    float claheClipLimit = 3.5f; // UI-controlled brightness/contrast (brighter default)
-    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(claheClipLimit, cv::Size(8, 8));
-
-    // Preview brightness (visual only)
-    double previewAlpha = 1.0; // contrast
-    double previewBeta  = 0.0; // brightness
+    const double CELL_ZOOM = 2.5; // aggressive local zoom per cell
 
     while (!glfwWindowShouldClose(window)) {
         cv::Mat frame;
         cap >> frame;
         if (frame.empty())
             break;
-
-        // --- Preview brightness mapping (visual feedback) ---
-        previewAlpha = 1.05 + (claheClipLimit - 3.0) * 0.25;
-        previewBeta  = 20.0 + (claheClipLimit - 3.0) * 30.0;
-
-        frame.convertTo(frame, -1, previewAlpha, previewBeta);
 
         // --- central BOX ROI ---
         int bw = static_cast<int>(frame.cols * BOX_W);
@@ -276,109 +232,33 @@ bool justReset = false;
         int cellW = bw / GRID_COLS;
         int cellH = bh / GRID_ROWS;
 
+        // --- grid overlay for semi-transparent lines ---
+        cv::Mat gridOverlay = frame.clone();
 
-        // --- Adaptive DM pass (preferred) ---
-        if (adaptiveMode && state == ScannerState::SCANNING && !justReset) {
-            cv::Mat roi = frame(lastAdaptiveROI).clone();
-
-            cv::Mat gray;
-            cv::cvtColor(roi, gray, cv::COLOR_BGR2GRAY);
-
-            ZXing::ImageView image(gray.data, gray.cols, gray.rows, ZXing::ImageFormat::Lum);
-            auto barcodes = ZXing::ReadBarcodes(image, hints);
-
-            for (const auto& barcode : barcodes) {
-                if (!barcode.isValid() || barcode.text().empty())
-                    continue;
-
-                const std::string& text = barcode.text();
-                if (seen.count(text))
-                    continue;
-
-                if (!timingStarted) {
-                    timingStarted = true;
-                    scanStartTime = std::chrono::steady_clock::now();
-                }
-
-                seen.insert(text);
-                scannedCodes.push_back(text);
-                ++scanIndex;
-
-                auto pos = barcode.position();
-                cv::Rect localRect(
-                    static_cast<int>(pos.topLeft().x),
-                    static_cast<int>(pos.topLeft().y),
-                    static_cast<int>(pos.bottomRight().x - pos.topLeft().x),
-                    static_cast<int>(pos.bottomRight().y - pos.topLeft().y)
-                );
-
-                localRect.x += lastAdaptiveROI.x;
-                localRect.y += lastAdaptiveROI.y;
-
-                lastAdaptiveROI = makeSquareROI(localRect, frame.size());
-
-                cv::rectangle(frame, lastAdaptiveROI, cv::Scalar(0, 200, 255), 3);
-
-                if (scanIndex == 10 && !timingStopped) {
-                    timingStopped = true;
-                    scanEndTime = std::chrono::steady_clock::now();
-                    state = ScannerState::READY;
-                }
-
-                break; // one per frame
-            }
-        }
         for (int r = 0; r < GRID_ROWS; ++r) {
             for (int c = 0; c < GRID_COLS; ++c) {
-                if ((state != ScannerState::SCANNING && state != ScannerState::DONE) || justReset)
+                if (state != ScannerState::SCANNING || justReset)
                     continue;
 
                 int cx = bx + c * cellW;
                 int cy = by + r * cellH;
                 cv::Rect cellROI(cx, cy, cellW, cellH);
 
-                // --- ЯВНАЯ ТАБЛИЦА ЦВЕТОВ ---
-                cv::Scalar gridColor(255, 255, 255); // IDLE = white
-                int thickness = GRID_THICKNESS;
+                cv::Scalar gridColor(180, 180, 180);
 
-                int idx = r * GRID_COLS + c;
-                auto now = std::chrono::steady_clock::now();
-
-                if (cellResolved[idx]) {
-                    gridColor = cv::Scalar(0, 255, 0); // SUCCESS
-                    thickness = 3;
-                }
-                else {
-                    double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now - cellStartTime[idx]
-                    ).count() / 1000.0;
-
-                    if (elapsed < 1.0) {
-                        // SCANNING → blinking green
-                        double t = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            now.time_since_epoch()
-                        ).count() / 1000.0;
-
-                        if (std::sin(t * 6.2831853) > 0) {
-                            gridColor = cv::Scalar(0, 255, 0);
-                            thickness = 3;
-                        }
-                    }
-                    else if (elapsed >= 1.0) {
-                        // FAILED → solid red
-                        gridColor = cv::Scalar(0, 0, 255);
-                        thickness = 3;
-                    }
-                }
-
-                // РИСОВАНИЕ СЕТКИ — ТОЛЬКО ОДИН РАЗ
+                // thin semi-transparent grid (drawn on overlay)
                 cv::rectangle(
-                    frame,
+                    gridOverlay,
                     cellROI,
                     gridColor,
-                    thickness,
+                    GRID_THICKNESS,
                     cv::LINE_AA
                 );
+
+                // active cell highlight (solid, on main frame)
+                if (state == ScannerState::SCANNING && !justReset) {
+                    cv::rectangle(frame, cellROI, cv::Scalar(80, 160, 255), 2);
+                }
 
                 // skip already scanned cells by content (global dedup still applies)
                 cv::Mat cell = frame(cellROI).clone();
@@ -425,10 +305,6 @@ bool justReset = false;
                     seen.insert(normalized);
                     scannedCodes.push_back(normalized);
                     ++scanIndex;
-                    if (!adaptiveMode) {
-                        adaptiveMode = true;
-                        lastAdaptiveROI = makeSquareROI(cellROI, frame.size());
-                    }
                     if (state == ScannerState::SCANNING && scanIndex == 10 && !timingStopped) {
                         timingStopped = true;
                         scanEndTime = std::chrono::steady_clock::now();
@@ -439,12 +315,14 @@ bool justReset = false;
                     std::cout << scanIndex << ". " << normalized << std::endl;
                     std::cout << "\a" << std::flush;
 
-                    // mark cell as resolved
-                    cellResolved[r * GRID_COLS + c] = true;
+                    // mark cell as scanned (green)
+                    cv::rectangle(frame, cellROI, cv::Scalar(0, 255, 0), 3);
                 }
             }
         }
 
+        // apply semi-transparent grid
+        cv::addWeighted(gridOverlay, GRID_ALPHA, frame, 1.0 - GRID_ALPHA, 0, frame);
 
         // --- overlay: scanned count ---
         // removed OpenCV text overlays
@@ -459,14 +337,8 @@ bool justReset = false;
                 state = ScannerState::DONE;
                 std::cout << "✅ State → DONE\n";
             } else {
-                // НЕ падаем в ERROR если все коды уже считаны
-                if (scanIndex >= 10) {
-                    state = ScannerState::DONE;
-                    std::cout << "⚠️ Aggregation failed, but scan SUCCESS (DONE)\n";
-                } else {
-                    state = ScannerState::ERROR;
-                    std::cout << "❌ State → ERROR\n";
-                }
+                state = ScannerState::ERROR;
+                std::cout << "❌ State → ERROR\n";
             }
         }
 
@@ -525,43 +397,6 @@ bool justReset = false;
             ImGui::PopStyleColor();
         }
 
-        ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, C_DIM);
-        ImGui::Text("Камера");
-        ImGui::PopStyleColor();
-
-        // Build camera labels dynamically: "Camera 0", "Camera 1", ...
-        static const char* cameraLabels[MAX_CAMERAS];
-        static std::string cameraLabelStorage[MAX_CAMERAS];
-        for (int i = 0; i < MAX_CAMERAS; ++i) {
-            cameraLabelStorage[i] = "Камера " + std::to_string(i);
-            cameraLabels[i] = cameraLabelStorage[i].c_str();
-        }
-
-        if (ImGui::Combo("##camera_select", &selectedCameraIndex, cameraLabels, MAX_CAMERAS)) {
-            if (selectedCameraIndex != cameraIndex) {
-                std::cout << "🎥 Switching camera to index " << selectedCameraIndex << std::endl;
-                cap.release();
-                cameraIndex = selectedCameraIndex;
-                cap.open(cameraIndex, cv::CAP_AVFOUNDATION);
-                if (!cap.isOpened()) {
-                    std::cerr << "❌ Cannot open camera " << cameraIndex << std::endl;
-                }
-            }
-        }
-
-        ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, C_DIM);
-        ImGui::Text("Яркость");
-        ImGui::PopStyleColor();
-        ImGui::SliderFloat(
-            "##brightness",
-            &claheClipLimit,
-            1.0f,
-            6.0f,
-            "%.1f"
-        );
-
         ImGui::Separator();
 
         // CODES (last 5)
@@ -592,10 +427,6 @@ bool justReset = false;
             scanStartTime = scanEndTime = {};
             state = ScannerState::SCANNING;
             justReset = true;
-            adaptiveMode = false;
-            std::fill(cellResolved.begin(), cellResolved.end(), false);
-            auto now = std::chrono::steady_clock::now();
-            std::fill(cellStartTime.begin(), cellStartTime.end(), now);
         }
 
         if (state == ScannerState::SENDING)
@@ -626,10 +457,6 @@ bool justReset = false;
             scannedCodes.clear();
             state = ScannerState::SCANNING;
             justReset = true;
-            adaptiveMode = false;
-            std::fill(cellResolved.begin(), cellResolved.end(), false);
-            auto now = std::chrono::steady_clock::now();
-            std::fill(cellStartTime.begin(), cellStartTime.end(), now);
             std::cout << "🔄 Scan reset — ready for new box\n";
         }
         if (key >= '0' && key <= '9') {
@@ -638,7 +465,6 @@ bool justReset = false;
                 std::cout << "🎥 Switching camera to index " << newIndex << std::endl;
                 cap.release();
                 cameraIndex = newIndex;
-                selectedCameraIndex = cameraIndex;
                 cap.open(cameraIndex, cv::CAP_AVFOUNDATION);
                 if (!cap.isOpened()) {
                     std::cerr << "❌ Cannot open camera " << cameraIndex << std::endl;
