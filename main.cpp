@@ -1,6 +1,56 @@
 #define GL_SILENCE_DEPRECATION
 #include <string>
 #include <opencv2/opencv.hpp>
+// --- GS1 DataMatrix normalization ---
+// Приводит все варианты разделителей к ASCII 29 (\x1D)
+inline std::string normalizeGS1(const std::string& raw)
+{
+    std::string out;
+    out.reserve(raw.size());
+
+    for (size_t i = 0; i < raw.size(); ++i) {
+        // Реальный ASCII GS (0x1D)
+        if (raw[i] == '\x1D') {
+            out.push_back('\x1D');
+            continue;
+        }
+
+        // Последовательность "<GS>"
+        if (raw[i] == '<' && i + 3 < raw.size()
+            && raw[i + 1] == 'G'
+            && raw[i + 2] == 'S'
+            && raw[i + 3] == '>') {
+            out.push_back('\x1D');
+            i += 3;
+            continue;
+        }
+
+        // ВСЁ ОСТАЛЬНОЕ — копируем как есть
+        out.push_back(raw[i]);
+    }
+
+    return out;
+}
+
+// --- GS1 printable helper ---
+inline std::string printableGS1(const std::string& s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for (unsigned char ch : s) {
+        if (ch == 0x1D) out += "<GS>";
+        else out.push_back(ch);
+    }
+    return out;
+}
+// --- ROI bounds check helper ---
+inline bool isValidROI(const cv::Rect& r, const cv::Mat& m)
+{
+    return r.width > 0 && r.height > 0 &&
+           r.x >= 0 && r.y >= 0 &&
+           r.x + r.width <= m.cols &&
+           r.y + r.height <= m.rows;
+}
 #include <ZXing/ReadBarcode.h>
 #include <ZXing/Barcode.h>
 #include <iostream>
@@ -29,6 +79,8 @@ enum class AggregationResult {
     NONE,
     OK,
     ALREADY_EXISTS,
+    NO_ORDER,
+    VALIDATION_ERROR,
     ERROR
 };
 
@@ -37,14 +89,7 @@ enum class SendMode {
     MANUAL
 };
 
-struct BoxQueueItem {
-    int box_id;
-    std::string sscc;
-    int order_id;
-    ScannerState state;
-};
-
-std::vector<BoxQueueItem> boxQueue;
+bool testMode = true; // TEST / PROD
 
 const char* stateToStr(ScannerState s)
 {
@@ -75,35 +120,37 @@ AggregationResult sendAggregation(
     payload["device_id"] = "table_01";
     payload["codes"] = codes;
 
-    auto res = cli.Post(
-        "/api/v1/camera/scan/aggregation/test",
-        payload.dump(),
-        "application/json"
-    );
+    std::string endpoint = testMode
+        ? "/api/v1/camera/scan/aggregation/test"
+        : "/api/v1/camera/scan/aggregation";
+
+    auto res = cli.Post(endpoint.c_str(), payload.dump(), "application/json");
 
     out_sscc.clear();
     out_order_id = -1;
 
-    if (!res) {
+    if (!res)
         return AggregationResult::ERROR;
-    }
 
-    if (res->status != 200) {
+    auto response = json::parse(res->body, nullptr, false);
+    if (response.is_discarded())
         return AggregationResult::ERROR;
-    }
 
-    auto response = json::parse(res->body);
     std::string status = response.value("status", "");
+
     out_sscc = response.value("sscc_code", "");
     out_order_id = response.value("order_id", -1);
-    bool success = response.value("success", false);
 
     if (status == "OK")
         return AggregationResult::OK;
-    else if (status == "ALREADY_EXISTS")
+    if (status == "ALREADY_EXISTS")
         return AggregationResult::ALREADY_EXISTS;
-    else
-        return AggregationResult::ERROR;
+    if (status == "NO_ORDER")
+        return AggregationResult::NO_ORDER;
+    if (status == "VALIDATION_ERROR")
+        return AggregationResult::VALIDATION_ERROR;
+
+    return AggregationResult::ERROR;
 }
 
 GLuint matToTexture(const cv::Mat& mat)
@@ -248,6 +295,8 @@ int cameraIndex = 0;
 
     std::unordered_set<std::string> seen;
     size_t scanIndex = 0;
+    auto lastActivityTime = std::chrono::steady_clock::now();
+    bool idleMode = false;
 
     bool timingStarted = false;
     auto scanStartTime = std::chrono::steady_clock::time_point{};
@@ -268,7 +317,6 @@ int cameraIndex = 0;
     std::string ui_sscc;
     int ui_order_id = -1;
     int boxCounter = 0;
-    int targetBoxes = 10;
     bool adaptiveMode = false;
     cv::Rect lastAdaptiveROI;
 
@@ -307,6 +355,9 @@ int cameraIndex = 0;
         cap >> frame;
         if (frame.empty())
             break;
+        if (idleMode && state == ScannerState::SCANNING) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
 
         // --- Preview brightness mapping (visual feedback) ---
         previewAlpha = 1.05 + (claheClipLimit - 3.0) * 0.25;
@@ -336,62 +387,81 @@ int cameraIndex = 0;
 
 
         // --- Adaptive DM pass (preferred) ---
-        if (adaptiveMode && state == ScannerState::SCANNING && !justReset) {
+        if (adaptiveMode && state == ScannerState::SCANNING && !justReset && !idleMode) {
             if (scanIndex >= 10)
                 break;
-            cv::Mat roi = frame(lastAdaptiveROI).clone();
 
-            cv::Mat gray;
-            cv::cvtColor(roi, gray, cv::COLOR_BGR2GRAY);
+            if (!isValidROI(lastAdaptiveROI, frame)) {
+                adaptiveMode = false;   // fail-safe
+            } else {
+                cv::Mat roi = frame(lastAdaptiveROI).clone();
 
-            ZXing::ImageView image(gray.data, gray.cols, gray.rows, ZXing::ImageFormat::Lum);
-            auto barcodes = ZXing::ReadBarcodes(image, hints);
+                cv::Mat gray;
+                cv::cvtColor(roi, gray, cv::COLOR_BGR2GRAY);
 
-            for (const auto& barcode : barcodes) {
-                if (!barcode.isValid() || barcode.text().empty())
-                    continue;
+                ZXing::ImageView image(gray.data, gray.cols, gray.rows, ZXing::ImageFormat::Lum);
+                auto barcodes = ZXing::ReadBarcodes(image, hints);
 
-                const std::string& text = barcode.text();
-                if (seen.count(text))
-                    continue;
+                for (const auto& barcode : barcodes) {
+                    if (!barcode.isValid() || barcode.text().empty())
+                        continue;
 
-                if (!timingStarted) {
-                    timingStarted = true;
-                    scanStartTime = std::chrono::steady_clock::now();
+                    // Always normalize GS1
+                    std::string normalized = normalizeGS1(barcode.text());
+                    if (seen.count(normalized))
+                        continue;
+
+                    if (!timingStarted) {
+                        timingStarted = true;
+                        scanStartTime = std::chrono::steady_clock::now();
+                    }
+
+                    seen.insert(normalized);
+                    scannedCodes.push_back(normalized);
+                    ++scanIndex;
+                    lastActivityTime = std::chrono::steady_clock::now();
+                    idleMode = false;
+
+                    auto pos = barcode.position();
+                    cv::Rect localRect(
+                        static_cast<int>(pos.topLeft().x),
+                        static_cast<int>(pos.topLeft().y),
+                        static_cast<int>(pos.bottomRight().x - pos.topLeft().x),
+                        static_cast<int>(pos.bottomRight().y - pos.topLeft().y)
+                    );
+
+                    // clamp to frame bounds (ZXing may give out-of-range coords)
+                    localRect &= cv::Rect(0, 0, frame.cols, frame.rows);
+
+                    localRect.x += lastAdaptiveROI.x;
+                    localRect.y += lastAdaptiveROI.y;
+
+                    cv::Rect candidateROI = makeSquareROI(localRect, frame.size());
+                    if (isValidROI(candidateROI, frame)) {
+                        lastAdaptiveROI = candidateROI;
+                    } else {
+                        adaptiveMode = false; // invalid ROI → fallback to grid
+                    }
+
+                    cv::rectangle(frame, lastAdaptiveROI, cv::Scalar(0, 200, 255), 3);
+
+                    if (scanIndex == 10 && !timingStopped) {
+                        timingStopped = true;
+                        scanEndTime = std::chrono::steady_clock::now();
+                        state = ScannerState::READY;
+                    }
+
+                    std::cout << scanIndex << ". " << printableGS1(normalized) << std::endl;
+                    std::cout << "\a" << std::flush;
+
+                    break; // one per frame
                 }
-
-                seen.insert(text);
-                scannedCodes.push_back(text);
-                ++scanIndex;
-
-                auto pos = barcode.position();
-                cv::Rect localRect(
-                    static_cast<int>(pos.topLeft().x),
-                    static_cast<int>(pos.topLeft().y),
-                    static_cast<int>(pos.bottomRight().x - pos.topLeft().x),
-                    static_cast<int>(pos.bottomRight().y - pos.topLeft().y)
-                );
-
-                localRect.x += lastAdaptiveROI.x;
-                localRect.y += lastAdaptiveROI.y;
-
-                lastAdaptiveROI = makeSquareROI(localRect, frame.size());
-
-                cv::rectangle(frame, lastAdaptiveROI, cv::Scalar(0, 200, 255), 3);
-
-                if (scanIndex == 10 && !timingStopped) {
-                    timingStopped = true;
-                    scanEndTime = std::chrono::steady_clock::now();
-                    state = ScannerState::READY;
-                }
-
-                break; // one per frame
             }
         }
         for (int r = 0; r < GRID_ROWS; ++r) {
             for (int c = 0; c < GRID_COLS; ++c) {
                 // Scan ONLY in active SCANNING state
-                if (state != ScannerState::SCANNING || justReset)
+                if (state != ScannerState::SCANNING || justReset || idleMode)
                     continue;
 
                 int idx = r * GRID_COLS + c;
@@ -444,6 +514,8 @@ int cameraIndex = 0;
                 );
 
                 // skip already scanned cells by content (global dedup still applies)
+                if (!isValidROI(cellROI, frame))
+                    continue;
                 cv::Mat cell = frame(cellROI).clone();
 
                 // local zoom for this cell
@@ -470,12 +542,7 @@ int cameraIndex = 0;
                     const std::string& text = barcode.text();
 
                     // Normalize GS1
-                    std::string normalized;
-                    normalized.reserve(text.size());
-                    for (char ch : text) {
-                        if (ch != '(' && ch != ')')
-                            normalized.push_back(ch);
-                    }
+                    std::string normalized = normalizeGS1(text);
 
                     // HARD STOP: never scan more than 10
                     if (scanIndex >= 10)
@@ -492,9 +559,16 @@ int cameraIndex = 0;
                     seen.insert(normalized);
                     scannedCodes.push_back(normalized);
                     ++scanIndex;
+                    lastActivityTime = std::chrono::steady_clock::now();
+                    idleMode = false;
                     if (!adaptiveMode) {
                         adaptiveMode = true;
-                        lastAdaptiveROI = makeSquareROI(cellROI, frame.size());
+                        cv::Rect candidateROI = makeSquareROI(cellROI, frame.size());
+                        if (isValidROI(candidateROI, frame)) {
+                            lastAdaptiveROI = candidateROI;
+                        } else {
+                            adaptiveMode = false; // invalid ROI → fallback to grid
+                        }
                     }
                     if (state == ScannerState::SCANNING && scanIndex == 10 && !timingStopped) {
                         timingStopped = true;
@@ -503,7 +577,7 @@ int cameraIndex = 0;
                         state = ScannerState::READY;
                         std::cout << "🟢 State → READY (10/10 scanned)\n";
                     }
-                    std::cout << scanIndex << ". " << normalized << std::endl;
+                    std::cout << scanIndex << ". " << printableGS1(normalized) << std::endl;
                     std::cout << "\a" << std::flush;
 
                     // mark cell as resolved
@@ -515,6 +589,14 @@ int cameraIndex = 0;
 
         // --- overlay: scanned count ---
         // removed OpenCV text overlays
+
+        // --- Idle check (throttling) ---
+        auto nowIdleCheck = std::chrono::steady_clock::now();
+        double idleSec = std::chrono::duration_cast<std::chrono::milliseconds>(
+            nowIdleCheck - lastActivityTime
+        ).count() / 1000.0;
+
+        idleMode = (idleSec > 0.6); // 600 мс без кодов = AFK
 
         // --- State machine: handle READY state ---
         if (state == ScannerState::READY && sendMode == SendMode::AUTO) {
@@ -545,18 +627,6 @@ int cameraIndex = 0;
                 state = ScannerState::ERROR;
             }
 
-            // Добавление в очередь коробок (OK и ALREADY_EXISTS)
-            if (res == AggregationResult::OK || res == AggregationResult::ALREADY_EXISTS) {
-                boxQueue.push_back({
-                    ui_order_id >= 0 ? boxCounter : boxCounter,
-                    ui_sscc,
-                    ui_order_id,
-                    res == AggregationResult::OK ? ScannerState::DONE : ScannerState::READY
-                });
-                if (boxQueue.size() > 20)
-                    boxQueue.erase(boxQueue.begin());
-            }
-
             // очистка сканера после ответа
             seen.clear();
             scannedCodes.clear();
@@ -565,6 +635,22 @@ int cameraIndex = 0;
         }
 
         // NOTE: do NOT clear 'seen' automatically; scanned codes must not be rescanned
+
+        // Автоматический запуск новой коробки после отправки
+        if (state == ScannerState::DONE && lastBoxCodesCount == 10) {
+            state = ScannerState::SCANNING;
+            justReset = true;
+            adaptiveMode = false;
+            std::fill(cellResolved.begin(), cellResolved.end(), false);
+            auto now = std::chrono::steady_clock::now();
+            std::fill(cellStartTime.begin(), cellStartTime.end(), now);
+            ui_sscc.clear();
+            ui_order_id = -1;
+            lastAggResult = AggregationResult::NONE;
+            lastBoxScanTimeSec = 0.0f;
+            lastBoxCodesCount = 0;
+            std::cout << "🔄 Автоматический запуск новой коробки\n";
+        }
 
         GLuint tex = matToTexture(frame);
 
@@ -608,13 +694,16 @@ int cameraIndex = 0;
         // STATUS (Russian UI)
         ImVec4 statusColor = C_ACCENT;
         const char* uiStatus =
-            state == ScannerState::SCANNING ? "СКАНИРОВАНИЕ" :
+            state == ScannerState::SCANNING ?
+                (idleMode ? "ОЖИДАНИЕ КОДОВ" : "СКАНИРОВАНИЕ") :
             state == ScannerState::READY    ? "ГОТОВО К ОТПРАВКЕ" :
             state == ScannerState::SENDING  ? "ОБРАБОТКА" :
-            state == ScannerState::DONE     ?
-                (lastAggResult == AggregationResult::ALREADY_EXISTS
-                    ? "АГРЕГАТ УЖЕ БЫЛ НАПОЛНЕН"
-                    : "АГРЕГАЦИЯ ВЫПОЛНЕНА")
+            state == ScannerState::DONE ?
+                (lastAggResult == AggregationResult::OK ? "АГРЕГАЦИЯ ВЫПОЛНЕНА" :
+                 lastAggResult == AggregationResult::ALREADY_EXISTS ? "АГРЕГАТ УЖЕ БЫЛ НАПОЛНЕН" :
+                 lastAggResult == AggregationResult::NO_ORDER ? "НЕТ ЗАКАЗА С ЭТИМИ КОДАМИ" :
+                 lastAggResult == AggregationResult::VALIDATION_ERROR ? "ОШИБКА ВАЛИДАЦИИ" :
+                 "ОШИБКА")
             : "ОШИБКА";
         if (state == ScannerState::DONE) statusColor = C_SUCCESS;
         else if (state == ScannerState::READY || state == ScannerState::SENDING) statusColor = C_WARN;
@@ -681,56 +770,19 @@ int cameraIndex = 0;
 
         ImGui::Separator();
 
-        // Info Panel: SSCC, Order ID, Box Counter, Target
+        // Info Panel: SSCC, Order ID, Box Counter
         if (!ui_sscc.empty())
             ImGui::Text("SSCC: %s", ui_sscc.c_str());
         if (ui_order_id > 0)
             ImGui::Text("Заказ: %d", ui_order_id);
-        ImGui::Text("Коробки: %d / %d", boxCounter, targetBoxes);
-        ImGui::SliderInt("Цель", &targetBoxes, 1, 500);
-        if (ImGui::Button("Обнулить счётчик")) {
-            boxCounter = 0;
-        }
-        if (ImGui::Button("Очистить очередь")) {
-            boxQueue.clear();
-        }
+        ImGui::Text("Коробок отсканировано: %d", boxCounter);
 
         ImGui::Spacing();
 
         ImGui::Separator();
-        ImGui::Text("Очередь коробок");
-        ImGui::BeginChild("box_queue", ImVec2(0, 180), true);
-        for (size_t i = 0; i < boxQueue.size(); ++i) {
-            const auto& box = boxQueue[i];
-            ImVec4 col =
-                box.state == ScannerState::DONE ? C_SUCCESS :
-                box.state == ScannerState::READY ? C_WARN :
-                C_DIM;
-            ImGui::PushStyleColor(ImGuiCol_Text, col);
-            ImGui::Text(
-                "#%zu | SSCC: %s | Заказ: %d",
-                i + 1,
-                box.sscc.c_str(),
-                box.order_id
-            );
-            ImGui::PopStyleColor();
-        }
-        ImGui::EndChild();
 
-        // CODES (last 5)
-        ImGui::Text("Последние коды");
-        ImGui::BeginChild("codes", ImVec2(0, 200), true);
-        int start = scannedCodes.size() > 5 ? scannedCodes.size() - 5 : 0;
-        for (size_t i = start; i < scannedCodes.size(); ++i) {
-            if (i == scannedCodes.size() - 1)
-                ImGui::PushStyleColor(ImGuiCol_Text, C_ACCENT);
-            ImGui::TextUnformatted(scannedCodes[i].c_str());
-            if (i == scannedCodes.size() - 1)
-                ImGui::PopStyleColor();
-        }
-        ImGui::EndChild();
-
-        ImGui::Spacing();
+        // TEST mode toggle
+        ImGui::Checkbox("ТЕСТ режим", &testMode);
 
         // Управление режимом отправки
         ImGui::Text("Режим отправки");
@@ -745,12 +797,11 @@ int cameraIndex = 0;
             }
         }
 
-
         // ACTION
         if (state == ScannerState::SENDING)
             ImGui::BeginDisabled();
 
-        if (ImGui::Button("↻ Новая коробка", ImVec2(-1, 42))) {
+        if (ImGui::Button("Попробовать еще раз", ImVec2(-1, 42))) {
             seen.clear();
             scanIndex = 0;
             scannedCodes.clear();
@@ -767,29 +818,7 @@ int cameraIndex = 0;
             lastAggResult = AggregationResult::NONE;
             lastBoxScanTimeSec = 0.0f;
             lastBoxCodesCount = 0;
-        }
-
-        if (ImGui::Button("♻ СБРОС (тест)", ImVec2(-1, 36))) {
-            if (sendTestReset()) {
-                std::cout << "♻ TEST_AGGREGATIONS reset\n";
-                // локальный сброс тоже делаем для чистоты
-                seen.clear();
-                scannedCodes.clear();
-                scanIndex = 0;
-                timingStarted = timingStopped = false;
-                scanStartTime = scanEndTime = {};
-                state = ScannerState::SCANNING;
-                justReset = true;
-                adaptiveMode = false;
-                std::fill(cellResolved.begin(), cellResolved.end(), false);
-                auto now = std::chrono::steady_clock::now();
-                std::fill(cellStartTime.begin(), cellStartTime.end(), now);
-                ui_sscc.clear();
-                ui_order_id = -1;
-                lastAggResult = AggregationResult::NONE;
-                lastBoxScanTimeSec = 0.0f;
-                lastBoxCodesCount = 0;
-            }
+            std::cout << "🔄 Попробовать еще раз — сброс состояния\n";
         }
 
         if (state == ScannerState::SENDING)
@@ -849,12 +878,6 @@ int cameraIndex = 0;
             zoom = std::max(zoom - zoomStep, zoomMin);
             std::cout << "🔍 Zoom: " << zoom << "x\n";
         }
-
-        // activeCell logic: skip resolved cells (if used elsewhere, adapt as needed)
-        // Example: 
-        // do {
-        //     activeCell = (activeCell + 1) % (GRID_ROWS * GRID_COLS);
-        // } while (cellResolved[activeCell]);
 
         justReset = false;
 
