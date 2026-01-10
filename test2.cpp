@@ -1,7 +1,5 @@
 #define GL_SILENCE_DEPRECATION
 #include <string>
-#include <vector>
-#include <map>
 #include <opencv2/opencv.hpp>
 #include <ZXing/ReadBarcode.h>
 #include <ZXing/Barcode.h>
@@ -39,16 +37,6 @@ enum class SendMode {
     MANUAL
 };
 
-struct OrderInfo {
-    std::string mode; // "TEST" | "PROD"
-    std::string order_name;
-    std::string product_name;
-    std::string batch_number;
-    std::string prod_date;
-    std::string exp_date;
-    int qty = 0;
-};
-
 struct BoxQueueItem {
     int box_id;
     std::string sscc;
@@ -74,8 +62,7 @@ const char* stateToStr(ScannerState s)
 AggregationResult sendAggregation(
     const std::vector<std::string>& codes,
     std::string& out_sscc,
-    int& out_order_id,
-    bool testMode
+    int& out_order_id
 )
 {
     using json = nlohmann::json;
@@ -88,12 +75,8 @@ AggregationResult sendAggregation(
     payload["device_id"] = "table_01";
     payload["codes"] = codes;
 
-    const char* url = testMode
-        ? "/api/v1/camera/scan/aggregation/test"
-        : "/api/v1/camera/scan/aggregation";
-
     auto res = cli.Post(
-        url,
+        "/api/v1/camera/scan/aggregation/test",
         payload.dump(),
         "application/json"
     );
@@ -121,42 +104,6 @@ AggregationResult sendAggregation(
         return AggregationResult::ALREADY_EXISTS;
     else
         return AggregationResult::ERROR;
-}
-
-bool fetchOrderInfo(const std::vector<std::string>& codes, OrderInfo& outInfo)
-{
-    using json = nlohmann::json;
-
-    httplib::Client cli("http://127.0.0.1:8000");
-    cli.set_connection_timeout(5);
-    cli.set_read_timeout(10);
-
-    json payload;
-    payload["device_id"] = "table_01";
-    payload["codes"] = codes;
-
-    auto res = cli.Post(
-        "/api/v1/camera/order-info",
-        payload.dump(),
-        "application/json"
-    );
-
-    if (!res || res->status != 200)
-        return false;
-
-    auto j = json::parse(res->body, nullptr, false);
-    if (j.is_discarded())
-        return false;
-
-    outInfo.mode         = j.value("mode", "");
-    outInfo.order_name   = j.value("order_name", "");
-    outInfo.product_name = j.value("product_name", "");
-    outInfo.batch_number = j.value("batch_number", "");
-    outInfo.prod_date    = j.value("prod_date", "");
-    outInfo.exp_date     = j.value("exp_date", "");
-    outInfo.qty          = j.value("qty", 0);
-
-    return true;
 }
 
 GLuint matToTexture(const cv::Mat& mat)
@@ -324,11 +271,6 @@ int cameraIndex = 0;
     int targetBoxes = 10;
     bool adaptiveMode = false;
     cv::Rect lastAdaptiveROI;
-
-    bool orderCheckMode = false;
-    OrderInfo orderInfo;
-    bool orderInfoLoaded = false;
-    bool testMode = false;
 
     double zoom = 1.0;          // 1.0 = no zoom
     const double zoomStep = 0.1;
@@ -554,14 +496,13 @@ int cameraIndex = 0;
                         adaptiveMode = true;
                         lastAdaptiveROI = makeSquareROI(cellROI, frame.size());
                     }
-                if (state == ScannerState::SCANNING && scanIndex == 10 && !timingStopped) {
-                    timingStopped = true;
-                    scanEndTime = std::chrono::steady_clock::now();
+                    if (state == ScannerState::SCANNING && scanIndex == 10 && !timingStopped) {
+                        timingStopped = true;
+                        scanEndTime = std::chrono::steady_clock::now();
 
-                    state = ScannerState::READY;
-                    std::cout << "🟢 State → READY (10/10 scanned)\n";
-                    std::cout << "\a\a\a" << std::flush; // длинный сигнал
-                }
+                        state = ScannerState::READY;
+                        std::cout << "🟢 State → READY (10/10 scanned)\n";
+                    }
                     std::cout << scanIndex << ". " << normalized << std::endl;
                     std::cout << "\a" << std::flush;
 
@@ -576,24 +517,13 @@ int cameraIndex = 0;
         // removed OpenCV text overlays
 
         // --- State machine: handle READY state ---
-        if (state == ScannerState::READY && orderCheckMode) {
-            if (fetchOrderInfo(scannedCodes, orderInfo)) {
-                orderInfoLoaded = true;
-            }
-            state = ScannerState::DONE;
-        }
         if (state == ScannerState::READY && sendMode == SendMode::AUTO) {
             state = ScannerState::SENDING;
         }
 
         // --- State machine: handle SENDING state ---
         if (state == ScannerState::SENDING) {
-            AggregationResult res = sendAggregation(
-                scannedCodes,
-                ui_sscc,
-                ui_order_id,
-                testMode
-            );
+            AggregationResult res = sendAggregation(scannedCodes, ui_sscc, ui_order_id);
             lastAggResult = res;
 
             // сохранить метрики текущей коробки
@@ -674,32 +604,6 @@ int cameraIndex = 0;
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoScrollbar
         );
-
-        ImGui::Checkbox("Проверка заказа", &orderCheckMode);
-        ImGui::Checkbox("ТЕСТ", &testMode);
-
-        if (testMode) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.75f, 0.20f, 1.0f));
-            ImGui::Text("РЕЖИМ: ТЕСТ");
-            ImGui::PopStyleColor();
-        }
-
-        if (orderInfoLoaded) {
-            ImGui::Separator();
-
-            if (orderInfo.mode == "TEST") {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.75f, 0.20f, 1.0f));
-                ImGui::Text("⚠ РЕЖИМ: ТЕСТ");
-                ImGui::PopStyleColor();
-            }
-
-            ImGui::Text("Заказ: %s", orderInfo.order_name.c_str());
-            ImGui::Text("Товар: %s", orderInfo.product_name.c_str());
-            ImGui::Text("Партия: %s", orderInfo.batch_number.c_str());
-            ImGui::Text("Произв.: %s", orderInfo.prod_date.c_str());
-            ImGui::Text("Годен до: %s", orderInfo.exp_date.c_str());
-            ImGui::Text("Всего кодов: %d", orderInfo.qty);
-        }
 
         // STATUS (Russian UI)
         ImVec4 statusColor = C_ACCENT;
@@ -863,8 +767,6 @@ int cameraIndex = 0;
             lastAggResult = AggregationResult::NONE;
             lastBoxScanTimeSec = 0.0f;
             lastBoxCodesCount = 0;
-            orderInfoLoaded = false;
-            orderInfo = {};
         }
 
         if (ImGui::Button("♻ СБРОС (тест)", ImVec2(-1, 36))) {
@@ -906,22 +808,6 @@ int cameraIndex = 0;
         glDeleteTextures(1, &tex);
 
         int key = cv::waitKey(1) & 0xFF;
-        if (key == 13 && sendMode == SendMode::MANUAL && state == ScannerState::READY) {
-            state = ScannerState::SENDING;
-        }
-        if (key == 32) {
-            seen.clear();
-            scannedCodes.clear();
-            scanIndex = 0;
-            timingStarted = timingStopped = false;
-            scanStartTime = scanEndTime = {};
-            state = ScannerState::SCANNING;
-            adaptiveMode = false;
-            std::fill(cellResolved.begin(), cellResolved.end(), false);
-            auto now = std::chrono::steady_clock::now();
-            std::fill(cellStartTime.begin(), cellStartTime.end(), now);
-            orderInfoLoaded = false;
-        }
         if (key == 'q')
             break;
         if (key == 'c' || key == 'C') {
