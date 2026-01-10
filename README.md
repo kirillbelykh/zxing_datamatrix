@@ -1,8 +1,16 @@
-#!/bin/bash
-set -e
+# ZXing DataMatrix Scanner
 
-echo "🔨 Building scanner..."
+## Requirements
+- macOS
+- OpenCV
+- ZXing-cpp
+- GLFW
+- pkg-config
 
+## Install dependencies (macOS)
+brew install opencv zxing-cpp glfw pkg-config
+
+## Build
 g++ main.cpp \
  imgui/imgui.cpp \
  imgui/imgui_draw.cpp \
@@ -17,4 +25,5 @@ g++ main.cpp \
  -framework OpenGL \
  -o scanner
 
-echo "✅ Build complete"
+## Run
+./scanner
