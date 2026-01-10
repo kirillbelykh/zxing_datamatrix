@@ -1,5 +1,0 @@
-/Users/darasmirnova/Desktop/zxing_scanner/build/CMakeFiles/scanner_qt.dir
-/Users/darasmirnova/Desktop/zxing_scanner/build/CMakeFiles/edit_cache.dir
-/Users/darasmirnova/Desktop/zxing_scanner/build/CMakeFiles/rebuild_cache.dir
-/Users/darasmirnova/Desktop/zxing_scanner/build/CMakeFiles/scanner_qt_autogen_timestamp_deps.dir
-/Users/darasmirnova/Desktop/zxing_scanner/build/CMakeFiles/scanner_qt_autogen.dir
