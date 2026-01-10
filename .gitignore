@@ -1,0 +1,10 @@
+# build
+build/
+**/build/
+**/_deps/
+
+# third party build artifacts
+third_party/**/build/
+
+# macOS
+.DS_Store
