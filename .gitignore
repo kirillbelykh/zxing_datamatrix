@@ -8,3 +8,4 @@ third_party/**/build/
 
 # macOS
 .DS_Store
+third_party/
