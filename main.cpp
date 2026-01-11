@@ -185,6 +185,7 @@ GLuint matToTexture(const cv::Mat& mat)
     return texture;
 }
 
+
 cv::Rect makeSquareROI(const cv::Rect& r, const cv::Size& bounds, float padding = 0.3f)
 {
     int size = std::max(r.width, r.height);
@@ -201,6 +202,31 @@ cv::Rect makeSquareROI(const cv::Rect& r, const cv::Size& bounds, float padding 
     if (y + size > bounds.height) size = bounds.height - y;
 
     return cv::Rect(x, y, size, size);
+}
+
+// --- Единая функция нормализации GS1/DataMatrix кодов ---
+std::string normalizeGS1(const std::string& raw)
+{
+    std::string out;
+    out.reserve(raw.size());
+
+    for (unsigned char ch : raw) {
+
+        // ✅ GS (ASCII 29) — ОБЯЗАТЕЛЬНО сохраняем
+        if (ch == 29) {
+            out.push_back(ch);
+            continue;
+        }
+
+        // ❌ удаляем только реально мусорные управляющие символы
+        if (ch < 32 || ch == 127)
+            continue;
+
+        // ✅ ВСЕ печатные символы (включая '(' и ')') сохраняем
+        out.push_back(ch);
+    }
+
+    return out;
 }
 
 // --- dev/test: reset TEST_AGGREGATIONS on backend ---
@@ -464,8 +490,12 @@ int main()
                 if (!barcode.isValid() || barcode.text().empty())
                     continue;
 
-                const std::string& text = barcode.text();
-                if (seen.count(text))
+                std::string normalized = normalizeGS1(barcode.text());
+
+                if (normalized.empty())
+                    continue;
+
+                if (seen.count(normalized))
                     continue;
 
                 if (!timingStarted) {
@@ -473,9 +503,14 @@ int main()
                     scanStartTime = std::chrono::steady_clock::now();
                 }
 
-                seen.insert(text);
-                scannedCodes.push_back(text);
+                seen.insert(normalized);
+                scannedCodes.push_back(normalized);
                 ++scanIndex;
+
+                // (Optional: log suspicious codes)
+                if (normalized.size() < 20) {
+                    std::cerr << "⚠ Suspicious code (normalized): " << normalized << std::endl;
+                }
 
                 auto pos = barcode.position();
                 cv::Rect localRect(
@@ -551,14 +586,9 @@ int main()
                             continue;
 
                         const std::string& text = barcode.text();
-
-                        // Normalize GS1
-                        std::string normalized;
-                        normalized.reserve(text.size());
-                        for (char ch : text) {
-                            if (ch != '(' && ch != ')')
-                                normalized.push_back(ch);
-                        }
+                        std::string normalized = normalizeGS1(text);
+                        if (normalized.empty())
+                            continue;
 
                         // HARD STOP: never scan more than targetCodes
                         if (scanIndex >= targetCodes)
@@ -587,6 +617,10 @@ int main()
                             std::cout << "🟢 State → READY (" << targetCodes << "/" << targetCodes << " scanned)\n";
                             std::cout << "\a\a\a" << std::flush; // длинный сигнал
                         }
+                        // (Optional: log suspicious codes)
+                        if (normalized.size() < 20) {
+                            std::cerr << "⚠ Suspicious code (normalized): " << normalized << std::endl;
+                        }
                         std::cout << scanIndex << ". " << normalized << std::endl;
                         std::cout << "\a" << std::flush;
 
@@ -609,14 +643,9 @@ int main()
                         continue;
 
                     const std::string& text = barcode.text();
-
-                    // Normalize GS1
-                    std::string normalized;
-                    normalized.reserve(text.size());
-                    for (char ch : text) {
-                        if (ch != '(' && ch != ')')
-                            normalized.push_back(ch);
-                    }
+                    std::string normalized = normalizeGS1(text);
+                    if (normalized.empty())
+                        continue;
 
                     if (seen.find(normalized) != seen.end())
                         continue;
@@ -629,6 +658,11 @@ int main()
                     seen.insert(normalized);
                     scannedCodes.push_back(normalized);
                     ++scanIndex;
+
+                    // (Optional: log suspicious codes)
+                    if (normalized.size() < 20) {
+                        std::cerr << "⚠ Suspicious code (normalized): " << normalized << std::endl;
+                    }
 
                     // Рисуем прямоугольник вокруг найденного кода
                     auto pos = barcode.position();
@@ -812,14 +846,17 @@ int main()
         // --- НОВЫЙ ЭЛЕМЕНТ: Выбор целевого количества кодов ---
         ImGui::Separator();
         ImGui::Text("Целевое кол-во кодов");
+        ImGui::Checkbox("Сетка", &gridEnabled);
         if (ImGui::SliderInt("##targetCodes", &targetCodes, 1, 10)) {
-            // Автоматически включаем/выключаем сетку в зависимости от выбранного значения
-            gridEnabled = (targetCodes == 10);
-            if (targetCodes < 10) {
-                adaptiveMode = false; // В режиме без сетки отключаем адаптивный режим
+            // количество кодов меняем независимо от сетки
+            if (!gridEnabled) {
+                adaptiveMode = false;
             }
         }
-        ImGui::Text("Сетка: %s", gridEnabled ? "ВКЛЮЧЕНА (статика)" : "ВЫКЛЮЧЕНА (ручное сканирование)");
+        ImGui::Text(
+            "Сетка: %s",
+            gridEnabled ? "ВКЛЮЧЕНА" : "ВЫКЛЮЧЕНА"
+        );
 
         // TIMER (badge)
         if (timingStarted) {
