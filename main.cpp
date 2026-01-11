@@ -46,7 +46,7 @@ struct OrderInfo {
     std::string batch_number;
     std::string prod_date;
     std::string exp_date;
-    int qty = 0;
+    int total_codes = 0;
 };
 
 struct BoxQueueItem {
@@ -154,7 +154,7 @@ bool fetchOrderInfo(const std::vector<std::string>& codes, OrderInfo& outInfo)
     outInfo.batch_number = j.value("batch_number", "");
     outInfo.prod_date    = j.value("prod_date", "");
     outInfo.exp_date     = j.value("exp_date", "");
-    outInfo.qty          = j.value("qty", 0);
+    outInfo.total_codes  = j.value("total_codes", 0);
 
     return true;
 }
@@ -698,7 +698,7 @@ int cameraIndex = 0;
             ImGui::Text("Партия: %s", orderInfo.batch_number.c_str());
             ImGui::Text("Произв.: %s", orderInfo.prod_date.c_str());
             ImGui::Text("Годен до: %s", orderInfo.exp_date.c_str());
-            ImGui::Text("Всего кодов: %d", orderInfo.qty);
+            ImGui::Text("Всего кодов: %d", orderInfo.total_codes);
         }
 
         // STATUS (Russian UI)
