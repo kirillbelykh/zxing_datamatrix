@@ -1225,6 +1225,13 @@ int main()
         
         ImGui::Spacing();
         
+        // Disable action buttons during sending
+        bool disableActions = (state == ScannerState::SENDING);
+        if (disableActions) {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+
         // SECTION: Action Buttons
         ImGui::PushFont(headingFont);
         ImGui::Text("Действия");
@@ -1279,10 +1286,10 @@ int main()
                 lastBoxCodesCount = 0;
             }
         }
-        
-        // Disable buttons during sending
-        if (state == ScannerState::SENDING) {
-            ImGui::EndDisabled();
+
+        if (disableActions) {
+            ImGui::PopStyleVar();
+            ImGui::PopItemFlag();
         }
         
         ImGui::EndChild();
