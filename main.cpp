@@ -61,11 +61,11 @@ std::vector<BoxQueueItem> boxQueue;
 const char* stateToStr(ScannerState s)
 {
     switch (s) {
-        case ScannerState::SCANNING: return "SCANNING";
-        case ScannerState::READY:    return "READY";
-        case ScannerState::SENDING:  return "SENDING";
-        case ScannerState::DONE:     return "DONE";
-        case ScannerState::ERROR:    return "ERROR";
+        case ScannerState::SCANNING: return "Сканирование";
+        case ScannerState::READY:    return "Готово";
+        case ScannerState::SENDING:  return "Отправка";
+        case ScannerState::DONE:     return "Завершено";
+        case ScannerState::ERROR:    return "Ошибка";
         default: return "UNKNOWN";
     }
 }
@@ -113,7 +113,7 @@ AggregationResult sendAggregation(
     std::string status = response.value("status", "");
     out_sscc = response.value("sscc_code", "");
     out_order_id = response.value("order_id", -1);
-    bool success = response.value("success", false);
+    (void)response.value("success", false);
 
     if (status == "OK")
         return AggregationResult::OK;
@@ -185,7 +185,6 @@ GLuint matToTexture(const cv::Mat& mat)
     return texture;
 }
 
-
 cv::Rect makeSquareROI(const cv::Rect& r, const cv::Size& bounds, float padding = 0.3f)
 {
     int size = std::max(r.width, r.height);
@@ -204,32 +203,26 @@ cv::Rect makeSquareROI(const cv::Rect& r, const cv::Size& bounds, float padding 
     return cv::Rect(x, y, size, size);
 }
 
-// --- Единая функция нормализации GS1/DataMatrix кодов ---
 std::string normalizeGS1(const std::string& raw)
 {
     std::string out;
     out.reserve(raw.size());
 
     for (unsigned char ch : raw) {
-
-        // ✅ GS (ASCII 29) — ОБЯЗАТЕЛЬНО сохраняем
         if (ch == 29) {
             out.push_back(ch);
             continue;
         }
 
-        // ❌ удаляем только реально мусорные управляющие символы
         if (ch < 32 || ch == 127)
             continue;
 
-        // ✅ ВСЕ печатные символы (включая '(' и ')') сохраняем
         out.push_back(ch);
     }
 
     return out;
 }
 
-// --- dev/test: reset TEST_AGGREGATIONS on backend ---
 bool sendTestReset()
 {
     httplib::Client cli("http://127.0.0.1:8000");
@@ -246,6 +239,130 @@ bool sendTestReset()
     return true;
 }
 
+// --- Apple macOS Dark Mode Style ---
+void ApplyAppleDarkModeStyle()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    // Rounded corners (Apple-style)
+    style.WindowRounding    = 10.0f;
+    style.ChildRounding     = 8.0f;
+    style.FrameRounding     = 6.0f;
+    style.PopupRounding     = 8.0f;
+    style.ScrollbarRounding = 6.0f;
+    style.GrabRounding      = 6.0f;
+    style.TabRounding       = 6.0f;
+
+    // Spacing (Apple-like proportions)
+    style.WindowPadding     = ImVec2(12, 12);
+    style.FramePadding      = ImVec2(12, 6);
+    style.ItemSpacing       = ImVec2(8, 6);
+    style.ItemInnerSpacing  = ImVec2(4, 4);
+    style.ScrollbarSize     = 12.0f;
+    style.GrabMinSize       = 10.0f;
+
+    // Borders
+    style.WindowBorderSize  = 0.0f;
+    style.FrameBorderSize   = 0.0f;
+    style.PopupBorderSize   = 0.0f;
+
+    // Colors (macOS Dark Mode)
+    ImVec4* colors = style.Colors;
+    
+    // Base colors
+    colors[ImGuiCol_Text]                   = ImVec4(0.96f, 0.96f, 0.96f, 1.00f);
+    colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    
+    // Window/background
+    colors[ImGuiCol_WindowBg]               = ImVec4(0.11f, 0.11f, 0.11f, 0.94f);
+    colors[ImGuiCol_ChildBg]                = ImVec4(0.16f, 0.16f, 0.16f, 0.60f);
+    colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
+    
+    // Borders
+    colors[ImGuiCol_Border]                 = ImVec4(0.27f, 0.27f, 0.27f, 0.50f);
+    colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    
+    // Frame background
+    colors[ImGuiCol_FrameBg]                = ImVec4(0.20f, 0.20f, 0.20f, 0.54f);
+    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.28f, 0.28f, 0.28f, 0.54f);
+    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.32f, 0.32f, 0.32f, 0.54f);
+    
+    // Title
+    colors[ImGuiCol_TitleBg]                = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.10f, 0.10f, 0.10f, 0.51f);
+    
+    // Menu bar
+    colors[ImGuiCol_MenuBarBg]              = ImVec4(0.16f, 0.16f, 0.16f, 1.00f);
+    
+    // Scrollbar
+    colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
+    colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    
+    // Checkbox
+    colors[ImGuiCol_CheckMark]              = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);
+    
+    // Slider
+    colors[ImGuiCol_SliderGrab]             = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.08f, 0.56f, 0.95f, 1.00f);
+    
+    // Buttons
+    colors[ImGuiCol_Button]                 = ImVec4(0.27f, 0.27f, 0.27f, 0.40f);
+    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.34f, 0.34f, 0.34f, 1.00f);
+    colors[ImGuiCol_ButtonActive]           = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);
+    
+    // Headers
+    colors[ImGuiCol_Header]                 = ImVec4(0.10f, 0.64f, 1.00f, 0.31f);
+    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.10f, 0.64f, 1.00f, 0.80f);
+    colors[ImGuiCol_HeaderActive]           = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);
+    
+    // Separator
+    colors[ImGuiCol_Separator]              = ImVec4(0.27f, 0.27f, 0.27f, 0.50f);
+    colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.10f, 0.40f, 0.75f, 0.78f);
+    colors[ImGuiCol_SeparatorActive]        = ImVec4(0.10f, 0.40f, 0.75f, 1.00f);
+    
+    // Resize grip
+    colors[ImGuiCol_ResizeGrip]             = ImVec4(0.10f, 0.64f, 1.00f, 0.25f);
+    colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.10f, 0.64f, 1.00f, 0.67f);
+    colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.10f, 0.64f, 1.00f, 0.95f);
+    
+    // Tabs
+    colors[ImGuiCol_Tab]                    = ImVec4(0.18f, 0.18f, 0.18f, 0.86f);
+    colors[ImGuiCol_TabHovered]             = ImVec4(0.26f, 0.26f, 0.26f, 0.80f);
+    colors[ImGuiCol_TabActive]              = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+    colors[ImGuiCol_TabUnfocused]           = ImVec4(0.18f, 0.18f, 0.18f, 0.98f);
+    colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
+    
+    // Plot
+    colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+    colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+    colors[ImGuiCol_PlotHistogram]          = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);
+    colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+    
+    // Table
+    colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+    colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+    colors[ImGuiCol_TableBorderLight]       = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+    colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+    
+    // Text selection
+    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.10f, 0.64f, 1.00f, 0.35f);
+    
+    // Drag and drop
+    colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+    
+    // Navigation
+    colors[ImGuiCol_NavHighlight]           = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);
+    colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+    colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+    
+    // Modal window dim
+    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+}
+
 int main()
 {
     // --- GLFW initialization ---
@@ -254,7 +371,7 @@ int main()
         return 1;
     }
 
-    GLFWwindow* window = glfwCreateWindow(1600, 900, "ZXing Scanner", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1800, 1000, "GRUNDLAGE", nullptr, nullptr);
     if (!window) {
         std::cerr << "❌ GLFW window failed\n";
         return 1;
@@ -267,50 +384,41 @@ int main()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-
+    
+    // Load SF Pro font on macOS
     io.Fonts->AddFontFromFileTTF(
         "/System/Library/Fonts/SFNS.ttf",
-        18.0f,
+        15.0f,
         nullptr,
         io.Fonts->GetGlyphRangesCyrillic()
     );
+    
+    // Small font for captions
+    ImFont* smallFont = io.Fonts->AddFontFromFileTTF(
+        "/System/Library/Fonts/SFNS.ttf",
+        13.0f,
+        nullptr,
+        io.Fonts->GetGlyphRangesCyrillic()
+    );
+    
+    // Bold font for headings
+    ImFont* headingFont = io.Fonts->AddFontFromFileTTF(
+        "/System/Library/Fonts/SFNS.ttf",
+        17.0f,
+        nullptr,
+        io.Fonts->GetGlyphRangesCyrillic()
+    );
+    
+    io.FontDefault = io.Fonts->Fonts[0];
 
-    ImGui::StyleColorsDark();
-
-    ImGuiStyle& style = ImGui::GetStyle();
-
-    // Rounded corners (Cursor / modern UI feel)
-    style.WindowRounding = 12.0f;      // main windows
-    style.ChildRounding  = 10.0f;      // panels / cards
-    style.FrameRounding  = 8.0f;       // buttons, inputs
-    style.PopupRounding  = 10.0f;
-    style.ScrollbarRounding = 8.0f;
-    style.GrabRounding = 8.0f;
-
-    // Softer window borders
-    style.WindowBorderSize = 0.0f;
-    style.FrameBorderSize  = 0.0f;
-
-    // Slightly more padding (cleaner layout)
-    style.WindowPadding = ImVec2(16, 14);
-    style.FramePadding  = ImVec2(10, 8);
-    style.ItemSpacing   = ImVec2(10, 10);
-
-    ImVec4 C_ACCENT  = ImVec4(0.20f, 0.55f, 0.90f, 1.00f);
-    ImVec4 C_SUCCESS = ImVec4(0.25f, 0.75f, 0.45f, 1.00f);
-    ImVec4 C_WARN    = ImVec4(0.95f, 0.75f, 0.20f, 1.00f);
-    ImVec4 C_ERROR   = ImVec4(0.90f, 0.30f, 0.30f, 1.00f);
-    ImVec4 C_DIM     = ImVec4(0.10f, 0.10f, 0.10f, 0.65f);
-
-    const int GRID_THICKNESS = 1;
-    const double GRID_ALPHA = 0.4;   // transparency (0.3–0.5 recommended)
+    // Apply Apple dark mode style
+    ApplyAppleDarkModeStyle();
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 120");
 
     int cameraIndex = 0;
-    // Camera selector (simple indexed list)
-    const int MAX_CAMERAS = 2; // adjust if needed
+    const int MAX_CAMERAS = 2;
     int selectedCameraIndex = cameraIndex;
 
     cv::VideoCapture cap(cameraIndex, cv::CAP_AVFOUNDATION);
@@ -319,7 +427,7 @@ int main()
         return 1;
     }
 
-    std::cout << "▶ ZXing Scanner started (Q to quit)\n";
+    std::cout << "▶ Codex Scanner started (Q to quit)\n";
 
     ZXing::ReaderOptions hints;
     hints.setFormats(ZXing::BarcodeFormat::DataMatrix);
@@ -333,7 +441,6 @@ int main()
     bool timingStopped = false;
     auto scanEndTime = std::chrono::steady_clock::time_point{};
 
-    // --- Коробочные метрики ---
     float lastBoxScanTimeSec = 0.0f;
     int lastBoxCodesCount = 0;
 
@@ -356,39 +463,39 @@ int main()
     bool orderInfoLoaded = false;
     bool testMode = false;
 
-    double zoom = 1.0;          // 1.0 = no zoom
-    const double zoomStep = 0.1;
-    const double zoomMin = 1.0;
-    const double zoomMax = 2.0;
-
-    // --- NEW: Target codes configuration ---
-    int targetCodes = 10;  // Default is 10
-    bool gridEnabled = true;  // Grid is enabled by default (for 10 codes)
+    // --- Target codes configuration ---
+    int targetCodes = 10;
+    bool gridEnabled = true;
+    bool showGridOverlay = true; // Subtle guide lines
 
     // fixed box & grid configuration
     const int GRID_ROWS = 2;
     const int GRID_COLS = 5;
 
-    // Per-cell state for blinking red logic
     std::vector<std::chrono::steady_clock::time_point> cellStartTime(
         GRID_ROWS * GRID_COLS,
         std::chrono::steady_clock::now()
     );
     std::vector<bool> cellResolved(GRID_ROWS * GRID_COLS, false);
 
-    // Central box ROI as % of frame (tuned for fixed corner guides)
-    const double BOX_W = 0.80;   // 80% width
-    const double BOX_H = 0.90;   // 70% height
-
-    const double CELL_ZOOM = 2.0; // aggressive local zoom per cell
+    const double BOX_W = 0.80;
+    const double BOX_H = 0.90;
+    const double CELL_ZOOM = 2.0;
 
     // --- CLAHE and preview brightness parameters ---
-    float claheClipLimit = 3.5f; // UI-controlled brightness/contrast (brighter default)
+    float claheClipLimit = 3.5f;
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(claheClipLimit, cv::Size(8, 8));
 
-    // Preview brightness (visual only)
-    double previewAlpha = 1.0; // contrast
-    double previewBeta  = 0.0; // brightness
+    double previewAlpha = 1.0;
+    double previewBeta  = 0.0;
+
+    // Colors for status indicators (muted, professional)
+    ImVec4 C_SUCCESS = ImVec4(0.20f, 0.85f, 0.30f, 1.00f);  // Muted green
+    ImVec4 C_WARNING = ImVec4(1.00f, 0.75f, 0.00f, 1.00f);  // Amber
+    ImVec4 C_ERROR = ImVec4(1.00f, 0.35f, 0.35f, 1.00f);    // Soft red
+    ImVec4 C_ACCENT = ImVec4(0.10f, 0.64f, 1.00f, 1.00f);   // Apple blue
+    ImVec4 C_DIM = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);      // Dim text
+    ImVec4 C_DARK_BG = ImVec4(0.08f, 0.08f, 0.08f, 0.90f);  // Dark overlay
 
     while (!glfwWindowShouldClose(window)) {
         cv::Mat frame;
@@ -396,13 +503,12 @@ int main()
         if (frame.empty())
             break;
 
-        // --- Preview brightness mapping (visual feedback) ---
         previewAlpha = 1.05 + (claheClipLimit - 3.0) * 0.25;
         previewBeta  = 20.0 + (claheClipLimit - 3.0) * 30.0;
 
         frame.convertTo(frame, -1, previewAlpha, previewBeta);
 
-        // --- НОВАЯ ЛОГИКА: Рисуем центральную область только если включена сетка ---
+        // Draw dark overlay outside scanning area
         if (gridEnabled) {
             int bw = static_cast<int>(frame.cols * BOX_W);
             int bh = static_cast<int>(frame.rows * BOX_H);
@@ -410,66 +516,31 @@ int main()
             int by = (frame.rows - bh) / 2;
             cv::Rect boxROI(bx, by, bw, bh);
 
-            // Darken outside ROI (focus mask)
+            // Darken outside ROI with subtle vignette
             cv::Mat overlay;
             frame.copyTo(overlay);
             cv::rectangle(overlay, cv::Rect(0, 0, frame.cols, frame.rows), cv::Scalar(0,0,0), -1);
             cv::rectangle(overlay, boxROI, cv::Scalar(0,0,0), -1);
-            cv::addWeighted(overlay, 0.55, frame, 0.45, 0, frame);
+            cv::addWeighted(overlay, 0.7, frame, 0.3, 0, frame);
 
-            // draw box ROI
-            cv::rectangle(frame, boxROI, cv::Scalar(255, 255, 0), 2);
+            // Draw subtle focus frame (professional, not flashy)
+            cv::rectangle(frame, boxROI, cv::Scalar(180, 180, 180), 1, cv::LINE_AA);
 
-            // Draw grid only if enabled
-            int cellW = bw / GRID_COLS;
-            int cellH = bh / GRID_ROWS;
-            
-            for (int r = 0; r < GRID_ROWS; ++r) {
-                for (int c = 0; c < GRID_COLS; ++c) {
-                    int idx = r * GRID_COLS + c;
-                    int cx = bx + c * cellW;
-                    int cy = by + r * cellH;
-                    cv::Rect cellROI(cx, cy, cellW, cellH);
-
-                    // --- ЯВНАЯ ТАБЛИЦА ЦВЕТОВ ---
-                    cv::Scalar gridColor(255, 255, 255); // IDLE = white
-                    int thickness = GRID_THICKNESS;
-
-                    auto now = std::chrono::steady_clock::now();
-
-                    // Защита: не запускать SCANNING для success
-                    if (cellResolved[idx])
-                        continue;
-
-                    double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now - cellStartTime[idx]
-                    ).count() / 1000.0;
-
-                    if (elapsed < 1.0) {
-                        // SCANNING → blinking green
-                        double t = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            now.time_since_epoch()
-                        ).count() / 1000.0;
-
-                        if (std::sin(t * 6.2831853) > 0) {
-                            gridColor = cv::Scalar(0, 255, 0);
-                            thickness = 3;
-                        }
-                    }
-                    else if (elapsed >= 1.0) {
-                        // FAILED → solid red
-                        gridColor = cv::Scalar(0, 0, 255);
-                        thickness = 3;
-                    }
-
-                    // РИСОВАНИЕ СЕТКИ
-                    cv::rectangle(
-                        frame,
-                        cellROI,
-                        gridColor,
-                        thickness,
-                        cv::LINE_AA
-                    );
+            // Draw very subtle grid lines if enabled
+            if (showGridOverlay) {
+                int cellW = bw / GRID_COLS;
+                int cellH = bh / GRID_ROWS;
+                
+                for (int r = 1; r < GRID_ROWS; ++r) {
+                    int y = by + r * cellH;
+                    cv::line(frame, cv::Point(bx, y), cv::Point(bx + bw, y), 
+                            cv::Scalar(100, 100, 100, 0.3), 1, cv::LINE_AA);
+                }
+                
+                for (int c = 1; c < GRID_COLS; ++c) {
+                    int x = bx + c * cellW;
+                    cv::line(frame, cv::Point(x, by), cv::Point(x, by + bh), 
+                            cv::Scalar(100, 100, 100, 0.3), 1, cv::LINE_AA);
                 }
             }
         }
@@ -507,7 +578,6 @@ int main()
                 scannedCodes.push_back(normalized);
                 ++scanIndex;
 
-                // (Optional: log suspicious codes)
                 if (normalized.size() < 20) {
                     std::cerr << "⚠ Suspicious code (normalized): " << normalized << std::endl;
                 }
@@ -525,7 +595,7 @@ int main()
 
                 lastAdaptiveROI = makeSquareROI(localRect, frame.size());
 
-                cv::rectangle(frame, lastAdaptiveROI, cv::Scalar(0, 200, 255), 3);
+                cv::rectangle(frame, lastAdaptiveROI, cv::Scalar(0, 180, 255), 2);
 
                 if (scanIndex == targetCodes && !timingStopped) {
                     timingStopped = true;
@@ -533,11 +603,11 @@ int main()
                     state = ScannerState::READY;
                 }
 
-                break; // one per frame
+                break;
             }
         }
 
-        // --- Сканирование с использованием сетки (только если сетка включена) ---
+        // --- Grid scanning ---
         if (gridEnabled) {
             int bw = static_cast<int>(frame.cols * BOX_W);
             int bh = static_cast<int>(frame.rows * BOX_H);
@@ -548,12 +618,10 @@ int main()
             
             for (int r = 0; r < GRID_ROWS; ++r) {
                 for (int c = 0; c < GRID_COLS; ++c) {
-                    // Scan ONLY in active SCANNING state
                     if (state != ScannerState::SCANNING || justReset)
                         continue;
 
                     int idx = r * GRID_COLS + c;
-                    // Do not spend CPU on already successful cells
                     if (cellResolved[idx])
                         continue;
 
@@ -561,14 +629,10 @@ int main()
                     int cy = by + r * cellH;
                     cv::Rect cellROI(cx, cy, cellW, cellH);
 
-                    // skip already scanned cells by content (global dedup still applies)
                     cv::Mat cell = frame(cellROI).clone();
-
-                    // local zoom for this cell
                     cv::Mat cellZoomed;
                     cv::resize(cell, cellZoomed, cv::Size(), CELL_ZOOM, CELL_ZOOM, cv::INTER_LINEAR);
 
-                    // grayscale
                     cv::Mat gray;
                     cv::cvtColor(cellZoomed, gray, cv::COLOR_BGR2GRAY);
 
@@ -590,7 +654,6 @@ int main()
                         if (normalized.empty())
                             continue;
 
-                        // HARD STOP: never scan more than targetCodes
                         if (scanIndex >= targetCodes)
                             break;
 
@@ -612,25 +675,22 @@ int main()
                         if (state == ScannerState::SCANNING && scanIndex == targetCodes && !timingStopped) {
                             timingStopped = true;
                             scanEndTime = std::chrono::steady_clock::now();
-
                             state = ScannerState::READY;
                             std::cout << "🟢 State → READY (" << targetCodes << "/" << targetCodes << " scanned)\n";
-                            std::cout << "\a\a\a" << std::flush; // длинный сигнал
+                            std::cout << "\a\a\a" << std::flush;
                         }
-                        // (Optional: log suspicious codes)
                         if (normalized.size() < 20) {
                             std::cerr << "⚠ Suspicious code (normalized): " << normalized << std::endl;
                         }
                         std::cout << scanIndex << ". " << normalized << std::endl;
                         std::cout << "\a" << std::flush;
 
-                        // mark cell as resolved
                         cellResolved[r * GRID_COLS + c] = true;
                     }
                 }
             }
         } else {
-            // --- Сканирование без сетки (весь кадр) ---
+            // --- Full frame scanning ---
             if (state == ScannerState::SCANNING && !justReset && scanIndex < targetCodes) {
                 cv::Mat gray;
                 cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
@@ -659,12 +719,10 @@ int main()
                     scannedCodes.push_back(normalized);
                     ++scanIndex;
 
-                    // (Optional: log suspicious codes)
                     if (normalized.size() < 20) {
                         std::cerr << "⚠ Suspicious code (normalized): " << normalized << std::endl;
                     }
 
-                    // Рисуем прямоугольник вокруг найденного кода
                     auto pos = barcode.position();
                     cv::Rect rect(
                         static_cast<int>(pos.topLeft().x),
@@ -672,7 +730,7 @@ int main()
                         static_cast<int>(pos.bottomRight().x - pos.topLeft().x),
                         static_cast<int>(pos.bottomRight().y - pos.topLeft().y)
                     );
-                    cv::rectangle(frame, rect, cv::Scalar(0, 255, 0), 2);
+                    cv::rectangle(frame, rect, cv::Scalar(80, 220, 100), 2);
 
                     std::cout << scanIndex << ". " << normalized << std::endl;
                     std::cout << "\a" << std::flush;
@@ -681,17 +739,14 @@ int main()
                         timingStopped = true;
                         scanEndTime = std::chrono::steady_clock::now();
                         state = ScannerState::READY;
-                        std::cout << "🟢 State → READY (" << targetCodes << "/" << targetCodes << " scanned)\n";
+                        std::cout << "🟢 СТАТУС → ГОТОВ (" << targetCodes << "/" << targetCodes << " scanned)\n";
                         std::cout << "\a\a\a" << std::flush;
                     }
                 }
             }
         }
 
-        // --- overlay: scanned count ---
-        // removed OpenCV text overlays
-
-        // --- State machine: handle READY state ---
+        // --- State machine ---
         if (state == ScannerState::READY && orderCheckMode) {
             if (fetchOrderInfo(scannedCodes, orderInfo)) {
                 orderInfoLoaded = true;
@@ -702,7 +757,6 @@ int main()
             state = ScannerState::SENDING;
         }
 
-        // --- State machine: handle SENDING state ---
         if (state == ScannerState::SENDING) {
             AggregationResult res = sendAggregation(
                 scannedCodes,
@@ -712,7 +766,6 @@ int main()
             );
             lastAggResult = res;
 
-            // сохранить метрики текущей коробки
             if (timingStarted) {
                 auto endTime = timingStopped ? scanEndTime : std::chrono::steady_clock::now();
                 lastBoxScanTimeSec =
@@ -731,7 +784,6 @@ int main()
                 state = ScannerState::ERROR;
             }
 
-            // Добавление в очередь коробок (OK и ALREADY_EXISTS)
             if (res == AggregationResult::OK || res == AggregationResult::ALREADY_EXISTS) {
                 boxQueue.push_back({
                     ui_order_id >= 0 ? boxCounter : boxCounter,
@@ -743,14 +795,11 @@ int main()
                     boxQueue.erase(boxQueue.begin());
             }
 
-            // очистка сканера после ответа
             seen.clear();
             scannedCodes.clear();
             scanIndex = 0;
             timingStarted = timingStopped = false;
         }
-
-        // NOTE: do NOT clear 'seen' automatically; scanned codes must not be rescanned
 
         GLuint tex = matToTexture(frame);
 
@@ -758,130 +807,246 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Camera window
-        ImGui::Begin("Камера", nullptr,
+        // Main window - full screen with no decorations
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        
+        ImGui::Begin("GRUNDLAGE", nullptr,
+            ImGuiWindowFlags_NoTitleBar |
             ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoScrollbar
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoBringToFrontOnFocus |
+            ImGuiWindowFlags_NoNavFocus |
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoBackground
         );
-        // Preserve aspect ratio
+
+        float sidebar_width = 300.0f;
+        float status_height = 50.0f;
+
+        // Top status bar (floating, translucent)
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, C_DARK_BG);
+        ImGui::BeginChild("StatusBar", ImVec2(ImGui::GetContentRegionAvail().x - sidebar_width - 10.0f, status_height), 
+                         false, ImGuiWindowFlags_NoScrollbar);
+        
+        ImGui::SetCursorPos(ImVec2(20, 15));
+        
+        // Status indicator with subtle animation
+        ImVec4 statusColor = C_DIM;
+        const char* statusText = "IDLE";
+        const char* statusDesc = "";
+        
+        switch(state) {
+            case ScannerState::SCANNING:
+                statusColor = C_ACCENT;
+                statusText = "СКАНИРОВАНИЕ";
+                statusDesc = "Сканирование кодов…";
+                break;
+            case ScannerState::READY:
+                statusColor = C_WARNING;
+                statusText = "ГОТОВ";
+                statusDesc = "Готово к отправке";
+                break;
+            case ScannerState::SENDING:
+                statusColor = C_WARNING;
+                statusText = "ОТПРАВКА";
+                statusDesc = "Отправка...";
+                break;
+            case ScannerState::DONE:
+                statusColor = C_SUCCESS;
+                statusText = (lastAggResult == AggregationResult::ALREADY_EXISTS) ? "УЖЕ ОБРАБОТАНО" : "ВЫПОЛНЕНО";
+                statusDesc = (lastAggResult == AggregationResult::ALREADY_EXISTS) 
+                           ? "Агрегация уже выполнена" 
+                           : "Агрегация завершена";
+                break;
+            case ScannerState::ERROR:
+                statusColor = C_ERROR;
+                statusText = "ОШИБКА";
+                statusDesc = "Ошибка";
+                break;
+        }
+        
+        // Status dot with pulsing animation for active states
+        if (state == ScannerState::SCANNING || state == ScannerState::SENDING) {
+            float time = ImGui::GetTime();
+            float alpha = 0.5f + 0.5f * sinf(time * 3.0f);
+            statusColor.w = alpha;
+        }
+        
+        ImGui::PushFont(headingFont);
+        ImGui::TextColored(statusColor, "●");
+        ImGui::PopFont();
+        
+        ImGui::SameLine();
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 2);
+        
+        ImGui::PushFont(headingFont);
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", statusText);
+        ImGui::PopFont();
+        
+        ImGui::SameLine();
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "  %s", statusDesc);
+        if (testMode) {
+            ImGui::SameLine();
+            ImGui::TextColored(C_WARNING, "  • ТЕСТ");
+        }
+
+        if (orderCheckMode) {
+            ImGui::SameLine();
+            ImGui::TextColored(C_ACCENT, "  • ПРОВЕРКА ЗАКАЗА");
+        }
+        ImGui::PopFont();
+        
+        // Timer and counter on the right
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 200);
+        
+        if (timingStarted) {
+            auto endTime = timingStopped ? scanEndTime : std::chrono::steady_clock::now();
+            float sec = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - scanStartTime).count() / 1000.0f;
+            
+            ImGui::PushFont(smallFont);
+            ImGui::TextColored(C_DIM, "⏱ %.1fs  ", sec);
+            ImGui::PopFont();
+        }
+        
+        ImGui::SameLine();
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "📦 %zu/%d", scanIndex, targetCodes);
+        ImGui::PopFont();
+        
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        
+        // Main camera view
+        ImGui::BeginChild("CameraView", 
+                         ImVec2(ImGui::GetContentRegionAvail().x - sidebar_width - 10.0f, 
+                                ImGui::GetContentRegionAvail().y - 10.0f), 
+                         false, ImGuiWindowFlags_NoScrollbar);
+        
+        // Center camera feed with aspect ratio preservation
         float availWidth = ImGui::GetContentRegionAvail().x;
         float aspect = (float)frame.rows / (float)frame.cols;
         ImVec2 imageSize(availWidth, availWidth * aspect);
+        
+        // Center horizontally
+        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - imageSize.x) * 0.5f);
+        // Center vertically with some padding
+        ImGui::SetCursorPosY((ImGui::GetContentRegionAvail().y - imageSize.y) * 0.5f);
+        
         ImGui::Image((void*)(intptr_t)tex, imageSize);
-
-        // --- нижняя панель статистики коробки ---
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::PushStyleColor(ImGuiCol_Text, C_DIM);
-        ImGui::Text("Текущая коробка");
-        ImGui::PopStyleColor();
-
-        if (lastBoxCodesCount > 0) {
-            ImGui::Text("Кодов отсканировано: %d / %d", lastBoxCodesCount, targetCodes);
-            ImGui::Text("Время сканирования: %.2f сек", lastBoxScanTimeSec);
-        } else {
-            ImGui::Text("Ожидание начала сканирования…");
-        }
-
-        ImGui::End();
-
-        // Info panel
-        ImGui::Begin("Панель сканирования", nullptr,
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoScrollbar
-        );
-
-        ImGui::Checkbox("Проверка заказа", &orderCheckMode);
-        ImGui::Checkbox("ТЕСТ", &testMode);
-
-        if (testMode) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.75f, 0.20f, 1.0f));
-            ImGui::Text("РЕЖИМ: ТЕСТ");
-            ImGui::PopStyleColor();
-        }
-
-        if (orderInfoLoaded) {
-            ImGui::Separator();
-
-            if (orderInfo.mode == "TEST") {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.75f, 0.20f, 1.0f));
-                ImGui::Text("⚠ РЕЖИМ: ТЕСТ");
-                ImGui::PopStyleColor();
-            }
-
-            ImGui::Text("Заказ: %s", orderInfo.order_name.c_str());
-            ImGui::Text("Товар: %s", orderInfo.product_name.c_str());
-            ImGui::Text("Партия: %s", orderInfo.batch_number.c_str());
-            ImGui::Text("Произв.: %s", orderInfo.prod_date.c_str());
-            ImGui::Text("Годен до: %s", orderInfo.exp_date.c_str());
-            ImGui::Text("Всего кодов: %d", orderInfo.total_codes);
-        }
-
-        // STATUS (Russian UI)
-        ImVec4 statusColor = C_ACCENT;
-        const char* uiStatus =
-            state == ScannerState::SCANNING ? "СКАНИРОВАНИЕ" :
-            state == ScannerState::READY    ? "ГОТОВО К ОТПРАВКЕ" :
-            state == ScannerState::SENDING  ? "ОБРАБОТКА" :
-            state == ScannerState::DONE     ?
-                (lastAggResult == AggregationResult::ALREADY_EXISTS
-                    ? "АГРЕГАТ УЖЕ БЫЛ НАПОЛНЕН"
-                    : "АГРЕГАЦИЯ ВЫПОЛНЕНА")
-            : "ОШИБКА";
-        if (state == ScannerState::DONE) statusColor = C_SUCCESS;
-        else if (state == ScannerState::READY || state == ScannerState::SENDING) statusColor = C_WARN;
-        else if (state == ScannerState::ERROR) statusColor = C_ERROR;
-
-        ImGui::PushStyleColor(ImGuiCol_Text, statusColor);
-        ImGui::Text("● %s", uiStatus);
-        ImGui::PopStyleColor();
-
-        ImGui::Spacing();
-
-        // PROGRESS (main)
+        
+        // Progress bar at bottom (thin, subtle)
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10);
         float progress = targetCodes > 0 ? scanIndex / (float)targetCodes : 0.0f;
-        ImGui::ProgressBar(progress, ImVec2(-1, 26));
-        ImGui::Text("Коды: %zu / %d", scanIndex, targetCodes);
-
-        // --- НОВЫЙ ЭЛЕМЕНТ: Выбор целевого количества кодов ---
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, C_ACCENT);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+        ImGui::ProgressBar(progress, ImVec2(-1, 4), "");
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor();
+        
+        ImGui::EndChild();
+        
+        ImGui::SameLine();
+        
+        // Right sidebar - Controls panel
+        ImGui::BeginChild("ControlsPanel", ImVec2(sidebar_width, 0), true);
+        
+        // SECTION: Scanning Configuration
+        ImGui::PushFont(headingFont);
+        ImGui::Text("Настройки");
+        ImGui::PopFont();
+        
         ImGui::Separator();
-        ImGui::Text("Целевое кол-во кодов");
-        ImGui::Checkbox("Сетка", &gridEnabled);
-        if (ImGui::SliderInt("##targetCodes", &targetCodes, 1, 10)) {
-            // количество кодов меняем независимо от сетки
+        ImGui::Spacing();
+        
+        // Target codes slider
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "КОЛ-ВО КОДОВ");
+        ImGui::PopFont();
+        
+        ImGui::PushItemWidth(-1);
+        ImGui::SliderInt("##targetCodes", &targetCodes, 1, 10);
+        ImGui::PopItemWidth();
+        
+        ImGui::Spacing();
+        
+        // Toggles in a compact row
+        ImGui::Columns(2, "##toggles", false);
+        ImGui::SetColumnWidth(0, 140);
+        
+        if (ImGui::Checkbox("ГРАНИЦЫ", &gridEnabled)) {
             if (!gridEnabled) {
                 adaptiveMode = false;
             }
         }
-        ImGui::Text(
-            "Сетка: %s",
-            gridEnabled ? "ВКЛЮЧЕНА" : "ВЫКЛЮЧЕНА"
-        );
+        
+        ImGui::NextColumn();
+        ImGui::Checkbox("СЕТКА", &showGridOverlay);
+        ImGui::Columns(1);
+        
+        ImGui::Spacing();
+        ImGui::Columns(2, "##modes", false);
+        ImGui::SetColumnWidth(0, 140);
 
-        // TIMER (badge)
-        if (timingStarted) {
-            auto endTime = timingStopped ? scanEndTime : std::chrono::steady_clock::now();
-            float sec = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - scanStartTime).count() / 1000.0f;
+        ImGui::Checkbox("ТЕСТ", &testMode);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Тестовый режим (без боевой отправки)");
 
-            ImVec4 tcol = sec < 3.0 ? C_SUCCESS : (sec < 5.0 ? C_WARN : C_ERROR);
-            ImGui::PushStyleColor(ImGuiCol_Text, tcol);
-            ImGui::Text("⏱ %.2f сек", sec);
+        ImGui::NextColumn();
+
+        ImGui::Checkbox("ПРОВЕРКА", &orderCheckMode);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Проверка заказа без агрегации");
+
+        ImGui::Columns(1);
+
+        
+        
+        // Mode indicators
+        if (testMode) {
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, C_WARNING);
+            ImGui::Text("⚠ ТЕСТОВЫЙ РЕЖИМ");
             ImGui::PopStyleColor();
         }
 
+        if (orderCheckMode) {
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, C_ACCENT);
+            ImGui::Text("🔎 ПРОВЕРКА ЗАКАЗА");
+            ImGui::PopStyleColor();
+        }
+        
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, C_DIM);
+        ImGui::Separator();
+        ImGui::Spacing();
+        
+        // SECTION: Camera Settings
+        ImGui::PushFont(headingFont);
         ImGui::Text("Камера");
-        ImGui::PopStyleColor();
-
-        // Build camera labels dynamically: "Camera 0", "Camera 1", ...
+        ImGui::PopFont();
+        
+        ImGui::Separator();
+        ImGui::Spacing();
+        
+        // Camera selector
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "Источник");
+        ImGui::PopFont();
+        
         static const char* cameraLabels[MAX_CAMERAS];
         static std::string cameraLabelStorage[MAX_CAMERAS];
         for (int i = 0; i < MAX_CAMERAS; ++i) {
-            cameraLabelStorage[i] = "Камера " + std::to_string(i);
+            cameraLabelStorage[i] = "Camera " + std::to_string(i);
             cameraLabels[i] = cameraLabelStorage[i].c_str();
         }
-
+        
+        ImGui::PushItemWidth(-1);
         if (ImGui::Combo("##camera_select", &selectedCameraIndex, cameraLabels, MAX_CAMERAS)) {
             if (selectedCameraIndex != cameraIndex) {
                 std::cout << "🎥 Switching camera to index " << selectedCameraIndex << std::endl;
@@ -893,91 +1058,183 @@ int main()
                 }
             }
         }
-
+        ImGui::PopItemWidth();
+        
         ImGui::Spacing();
-        ImGui::PushStyleColor(ImGuiCol_Text, C_DIM);
-        ImGui::Text("Яркость");
-        ImGui::PopStyleColor();
-        ImGui::SliderFloat(
-            "##brightness",
-            &claheClipLimit,
-            1.0f,
-            6.0f,
-            "%.1f"
-        );
-
-        ImGui::Separator();
-
-        // Info Panel: SSCC, Order ID, Box Counter, Target
-        if (!ui_sscc.empty())
-            ImGui::Text("SSCC: %s", ui_sscc.c_str());
-        if (ui_order_id > 0)
-            ImGui::Text("Заказ: %d", ui_order_id);
-        ImGui::Text("Коробки: %d / %d", boxCounter, targetBoxes);
-        ImGui::SliderInt("Цель", &targetBoxes, 1, 500);
-        if (ImGui::Button("Обнулить счётчик")) {
-            boxCounter = 0;
-        }
-        if (ImGui::Button("Очистить очередь")) {
-            boxQueue.clear();
-        }
-
+        
+        // Brightness control
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "Яркость");
+        ImGui::PopFont();
+        
+        ImGui::PushItemWidth(-1);
+        ImGui::SliderFloat("##яркость", &claheClipLimit, 1.0f, 6.0f, "%.1f");
+        ImGui::PopItemWidth();
+        
         ImGui::Spacing();
-
         ImGui::Separator();
-        ImGui::Text("Очередь коробок");
-        ImGui::BeginChild("box_queue", ImVec2(0, 180), true);
-        for (size_t i = 0; i < boxQueue.size(); ++i) {
-            const auto& box = boxQueue[i];
-            ImVec4 col =
-                box.state == ScannerState::DONE ? C_SUCCESS :
-                box.state == ScannerState::READY ? C_WARN :
-                C_DIM;
-            ImGui::PushStyleColor(ImGuiCol_Text, col);
-            ImGui::Text(
-                "#%zu | SSCC: %s | Заказ: %d",
-                i + 1,
-                box.sscc.c_str(),
-                box.order_id
-            );
-            ImGui::PopStyleColor();
+        ImGui::Spacing();
+        
+        // SECTION: Current Box Stats
+        ImGui::PushFont(headingFont);
+        ImGui::Text("Текущая коробка");
+        ImGui::PopFont();
+        
+        ImGui::Separator();
+        ImGui::Spacing();
+        
+        ImGui::Columns(2, "##статистика", false);
+        ImGui::SetColumnWidth(0, 120);
+        
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "Коды");
+        ImGui::PopFont();
+        ImGui::Text("%d/%d", lastBoxCodesCount, targetCodes);
+        
+        ImGui::NextColumn();
+        
+        ImGui::PushFont(smallFont);
+        ImGui::TextColored(C_DIM, "Время");
+        ImGui::PopFont();
+        ImGui::Text("%.1fs", lastBoxScanTimeSec);
+        
+        ImGui::Columns(1);
+        
+        if (lastBoxCodesCount == 0) {
+            ImGui::Spacing();
+            ImGui::PushFont(smallFont);
+            ImGui::TextColored(C_DIM, "ГОТОВ К СКАНИРОВАНИЮ...");
+            ImGui::PopFont();
         }
-        ImGui::EndChild();
-
-        // CODES (last 5)
-        ImGui::Text("Последние коды");
-        ImGui::BeginChild("codes", ImVec2(0, 200), true);
-        int start = scannedCodes.size() > 5 ? scannedCodes.size() - 5 : 0;
-        for (size_t i = start; i < scannedCodes.size(); ++i) {
-            if (i == scannedCodes.size() - 1)
-                ImGui::PushStyleColor(ImGuiCol_Text, C_ACCENT);
-            ImGui::TextUnformatted(scannedCodes[i].c_str());
-            if (i == scannedCodes.size() - 1)
+        
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+        
+        // SECTION: Order Information (if loaded)
+        if (orderInfoLoaded) {
+            ImGui::PushFont(headingFont);
+            ImGui::Text("Информация о заказе");
+            ImGui::PopFont();
+            
+            ImGui::Separator();
+            ImGui::Spacing();
+            
+            if (orderInfo.mode == "TEST") {
+                ImGui::TextColored(C_WARNING, "ТЕСТОВЫЙ ЗАКАЗ");
+                ImGui::Spacing();
+            }
+            
+            ImGui::PushFont(smallFont);
+            ImGui::TextColored(C_DIM, "Товар");
+            ImGui::PopFont();
+            ImGui::TextWrapped("%s", orderInfo.product_name.c_str());
+            
+            ImGui::Spacing();
+            
+            ImGui::PushFont(smallFont);
+            ImGui::TextColored(C_DIM, "Партия");
+            ImGui::PopFont();
+            ImGui::Text("%s", orderInfo.batch_number.c_str());
+            
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+        }
+        
+        // SECTION: Aggregation Results
+        if (!ui_sscc.empty() || ui_order_id > 0) {
+            ImGui::PushFont(headingFont);
+            ImGui::Text("Очередь");
+            ImGui::PopFont();
+            
+            ImGui::Separator();
+            ImGui::Spacing();
+            
+            if (!ui_sscc.empty()) {
+                ImGui::PushFont(smallFont);
+                ImGui::TextColored(C_DIM, "SSCC");
+                ImGui::PopFont();
+                ImGui::Text("%s", ui_sscc.c_str());
+                ImGui::Spacing();
+            }
+            
+            if (ui_order_id > 0) {
+                ImGui::PushFont(smallFont);
+                ImGui::TextColored(C_DIM, "Order ID");
+                ImGui::PopFont();
+                ImGui::Text("%d", ui_order_id);
+            }
+            
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+        }
+        
+        // SECTION: Box Queue
+        if (!boxQueue.empty()) {
+            ImGui::PushFont(headingFont);
+            ImGui::Text("ОЧЕРЕДЬ");
+            ImGui::PopFont();
+            
+            ImGui::Separator();
+            ImGui::Spacing();
+            
+            ImGui::BeginChild("QueueList", ImVec2(0, 120), true);
+            for (size_t i = 0; i < boxQueue.size(); ++i) {
+                const auto& box = boxQueue[i];
+                ImVec4 col = box.state == ScannerState::DONE ? C_SUCCESS :
+                            box.state == ScannerState::READY ? C_WARNING : C_DIM;
+                
+                ImGui::PushStyleColor(ImGuiCol_Text, col);
+                ImGui::BulletText("#%zu  %s", i + 1, box.sscc.c_str());
                 ImGui::PopStyleColor();
+            }
+            ImGui::EndChild();
+            
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
         }
-        ImGui::EndChild();
-
+        
+        // SECTION: Send Mode
+        ImGui::PushFont(headingFont);
+        ImGui::Text("В ОБРАБОТКЕ");
+        ImGui::PopFont();
+        
+        ImGui::Separator();
         ImGui::Spacing();
-
-        // Управление режимом отправки
-        ImGui::Text("Режим отправки");
-        ImGui::RadioButton("Авто", (int*)&sendMode, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("По кнопке", (int*)&sendMode, 1);
-
-        // Кнопка "Отправить" (MANUAL + READY)
+        
+        ImGui::PushItemWidth(-1);
+        if (ImGui::BeginCombo("##sendMode", sendMode == SendMode::AUTO ? "АВТОМАТИЧЕСКАЯ ОТПРАВКА" : "РУЧНАЯ ОТПРАВКА")) {
+            if (ImGui::Selectable("АВТООТПРАВКА", sendMode == SendMode::AUTO))
+                sendMode = SendMode::AUTO;
+            if (ImGui::Selectable("РУЧНАЯ ОТПРАВКА", sendMode == SendMode::MANUAL))
+                sendMode = SendMode::MANUAL;
+            ImGui::EndCombo();
+        }
+        ImGui::PopItemWidth();
+        
+        // Manual send button (only when ready)
         if (sendMode == SendMode::MANUAL && state == ScannerState::READY) {
-            if (ImGui::Button("Отправить", ImVec2(-1, 40))) {
+            ImGui::Spacing();
+            if (ImGui::Button("ОТПРАВИТЬ", ImVec2(-1, 36))) {
                 state = ScannerState::SENDING;
             }
         }
-
-
-        // ACTION
-        if (state == ScannerState::SENDING)
-            ImGui::BeginDisabled();
-
-        if (ImGui::Button("↻ Новая коробка", ImVec2(-1, 42))) {
+        
+        ImGui::Spacing();
+        
+        // SECTION: Action Buttons
+        ImGui::PushFont(headingFont);
+        ImGui::Text("Действия");
+        ImGui::PopFont();
+        
+        ImGui::Separator();
+        ImGui::Spacing();
+        
+        // New Box button
+        if (ImGui::Button("НОВАЯ КОРОБКА", ImVec2(-1, 40))) {
             seen.clear();
             scanIndex = 0;
             scannedCodes.clear();
@@ -997,11 +1254,13 @@ int main()
             orderInfoLoaded = false;
             orderInfo = {};
         }
-
-        if (ImGui::Button("♻ СБРОС (тест)", ImVec2(-1, 36))) {
+        
+        ImGui::Spacing();
+        
+        // Test reset button
+        if (ImGui::Button("СБРОС", ImVec2(-1, 32))) {
             if (sendTestReset()) {
                 std::cout << "♻ TEST_AGGREGATIONS reset\n";
-                // локальный сброс тоже делаем для чистоты
                 seen.clear();
                 scannedCodes.clear();
                 scanIndex = 0;
@@ -1020,27 +1279,33 @@ int main()
                 lastBoxCodesCount = 0;
             }
         }
-
-        if (state == ScannerState::SENDING)
+        
+        // Disable buttons during sending
+        if (state == ScannerState::SENDING) {
             ImGui::EndDisabled();
-
+        }
+        
+        ImGui::EndChild();
+        
         ImGui::End();
 
         ImGui::Render();
         int w, h;
         glfwGetFramebufferSize(window, &w, &h);
         glViewport(0, 0, w, h);
+        glClearColor(0.11f, 0.11f, 0.11f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
 
         glDeleteTextures(1, &tex);
 
+        // Keyboard shortcuts
         int key = cv::waitKey(1) & 0xFF;
         if (key == 13 && sendMode == SendMode::MANUAL && state == ScannerState::READY) {
             state = ScannerState::SENDING;
         }
-        if (key == 32) {
+        if (key == 32) { // Space - reset
             seen.clear();
             scannedCodes.clear();
             scanIndex = 0;
@@ -1053,7 +1318,7 @@ int main()
             std::fill(cellStartTime.begin(), cellStartTime.end(), now);
             orderInfoLoaded = false;
         }
-        if (key == 'q')
+        if (key == 'q' || key == 'Q')
             break;
         if (key == 'c' || key == 'C') {
             seen.clear();
@@ -1085,14 +1350,6 @@ int main()
                     std::cerr << "❌ Cannot open camera " << cameraIndex << std::endl;
                 }
             }
-        }
-        if (key == '+' || key == '=') {
-            zoom = std::min(zoom + zoomStep, zoomMax);
-            std::cout << "🔍 Zoom: " << zoom << "x\n";
-        }
-        if (key == '-' || key == '_') {
-            zoom = std::max(zoom - zoomStep, zoomMin);
-            std::cout << "🔍 Zoom: " << zoom << "x\n";
         }
 
         justReset = false;
