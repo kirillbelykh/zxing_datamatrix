@@ -1,0 +1,937 @@
+.
+├── CMakeLists.txt
+├── README.md
+├── build.sh
+├── httplib.h
+├── imgui
+│   ├── LICENSE.txt
+│   ├── backends
+│   │   ├── imgui_impl_allegro5.cpp
+│   │   ├── imgui_impl_allegro5.h
+│   │   ├── imgui_impl_android.cpp
+│   │   ├── imgui_impl_android.h
+│   │   ├── imgui_impl_dx10.cpp
+│   │   ├── imgui_impl_dx10.h
+│   │   ├── imgui_impl_dx11.cpp
+│   │   ├── imgui_impl_dx11.h
+│   │   ├── imgui_impl_dx12.cpp
+│   │   ├── imgui_impl_dx12.h
+│   │   ├── imgui_impl_dx9.cpp
+│   │   ├── imgui_impl_dx9.h
+│   │   ├── imgui_impl_glfw.cpp
+│   │   ├── imgui_impl_glfw.h
+│   │   ├── imgui_impl_glut.cpp
+│   │   ├── imgui_impl_glut.h
+│   │   ├── imgui_impl_metal.h
+│   │   ├── imgui_impl_metal.mm
+│   │   ├── imgui_impl_null.cpp
+│   │   ├── imgui_impl_null.h
+│   │   ├── imgui_impl_opengl2.cpp
+│   │   ├── imgui_impl_opengl2.h
+│   │   ├── imgui_impl_opengl3.cpp
+│   │   ├── imgui_impl_opengl3.h
+│   │   ├── imgui_impl_opengl3_loader.h
+│   │   ├── imgui_impl_osx.h
+│   │   ├── imgui_impl_osx.mm
+│   │   ├── imgui_impl_sdl2.cpp
+│   │   ├── imgui_impl_sdl2.h
+│   │   ├── imgui_impl_sdl3.cpp
+│   │   ├── imgui_impl_sdl3.h
+│   │   ├── imgui_impl_sdlgpu3.cpp
+│   │   ├── imgui_impl_sdlgpu3.h
+│   │   ├── imgui_impl_sdlgpu3_shaders.h
+│   │   ├── imgui_impl_sdlrenderer2.cpp
+│   │   ├── imgui_impl_sdlrenderer2.h
+│   │   ├── imgui_impl_sdlrenderer3.cpp
+│   │   ├── imgui_impl_sdlrenderer3.h
+│   │   ├── imgui_impl_vulkan.cpp
+│   │   ├── imgui_impl_vulkan.h
+│   │   ├── imgui_impl_wgpu.cpp
+│   │   ├── imgui_impl_wgpu.h
+│   │   ├── imgui_impl_win32.cpp
+│   │   ├── imgui_impl_win32.h
+│   │   ├── sdlgpu3
+│   │   │   ├── build_instructions.txt
+│   │   │   ├── shader.frag
+│   │   │   └── shader.vert
+│   │   └── vulkan
+│   │       ├── build_instructions.txt
+│   │       ├── generate_spv.sh
+│   │       ├── glsl_shader.frag
+│   │       └── glsl_shader.vert
+│   ├── docs
+│   │   ├── BACKENDS.md
+│   │   ├── CHANGELOG.txt
+│   │   ├── CONTRIBUTING.md
+│   │   ├── EXAMPLES.md
+│   │   ├── FAQ.md
+│   │   ├── FONTS.md
+│   │   ├── README.md
+│   │   └── TODO.txt
+│   ├── examples
+│   │   ├── README.txt
+│   │   ├── example_allegro5
+│   │   │   ├── README.md
+│   │   │   ├── example_allegro5.vcxproj
+│   │   │   ├── example_allegro5.vcxproj.filters
+│   │   │   ├── imconfig_allegro5.h
+│   │   │   └── main.cpp
+│   │   ├── example_android_opengl3
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── android
+│   │   │   │   ├── app
+│   │   │   │   ├── build.gradle
+│   │   │   │   ├── gradle
+│   │   │   │   └── settings.gradle
+│   │   │   └── main.cpp
+│   │   ├── example_apple_metal
+│   │   │   ├── Makefile
+│   │   │   ├── README.md
+│   │   │   ├── example_apple_metal.xcodeproj
+│   │   │   │   └── project.pbxproj
+│   │   │   ├── iOS
+│   │   │   │   ├── Info-iOS.plist
+│   │   │   │   └── LaunchScreen.storyboard
+│   │   │   ├── macOS
+│   │   │   │   ├── Info-macOS.plist
+│   │   │   │   └── MainMenu.storyboard
+│   │   │   └── main.mm
+│   │   ├── example_apple_opengl2
+│   │   │   ├── Makefile
+│   │   │   ├── example_apple_opengl2.xcodeproj
+│   │   │   │   └── project.pbxproj
+│   │   │   └── main.mm
+│   │   ├── example_glfw_metal
+│   │   │   ├── Makefile
+│   │   │   └── main.mm
+│   │   ├── example_glfw_opengl2
+│   │   │   ├── Makefile
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_glfw_opengl2.vcxproj
+│   │   │   ├── example_glfw_opengl2.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_glfw_opengl3
+│   │   │   ├── Makefile
+│   │   │   ├── Makefile.emscripten
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_glfw_opengl3.vcxproj
+│   │   │   ├── example_glfw_opengl3.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_glfw_vulkan
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── Makefile
+│   │   │   ├── build_win32.bat
+│   │   │   ├── build_win64.bat
+│   │   │   ├── example_glfw_vulkan.vcxproj
+│   │   │   ├── example_glfw_vulkan.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_glfw_wgpu
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── Makefile.emscripten
+│   │   │   ├── README.md
+│   │   │   └── main.cpp
+│   │   ├── example_glut_opengl2
+│   │   │   ├── Makefile
+│   │   │   ├── example_glut_opengl2.vcxproj
+│   │   │   ├── example_glut_opengl2.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_null
+│   │   │   ├── Makefile
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_null.vcxproj
+│   │   │   ├── example_null.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl2_directx11
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_sdl2_directx11.vcxproj
+│   │   │   ├── example_sdl2_directx11.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl2_metal
+│   │   │   ├── Makefile
+│   │   │   └── main.mm
+│   │   ├── example_sdl2_opengl2
+│   │   │   ├── Makefile
+│   │   │   ├── README.md
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_sdl2_opengl2.vcxproj
+│   │   │   ├── example_sdl2_opengl2.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl2_opengl3
+│   │   │   ├── Makefile
+│   │   │   ├── Makefile.emscripten
+│   │   │   ├── README.md
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_sdl2_opengl3.vcxproj
+│   │   │   ├── example_sdl2_opengl3.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl2_sdlrenderer2
+│   │   │   ├── Makefile
+│   │   │   ├── README.md
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_sdl2_sdlrenderer2.vcxproj
+│   │   │   ├── example_sdl2_sdlrenderer2.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl2_vulkan
+│   │   │   ├── Makefile
+│   │   │   ├── build_win32.bat
+│   │   │   ├── build_win64.bat
+│   │   │   ├── example_sdl2_vulkan.vcxproj
+│   │   │   ├── example_sdl2_vulkan.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl2_wgpu
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── Makefile.emscripten
+│   │   │   ├── README.md
+│   │   │   └── main.cpp
+│   │   ├── example_sdl3_directx11
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_sdl3_directx11.vcxproj
+│   │   │   ├── example_sdl3_directx11.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl3_metal
+│   │   │   ├── Makefile
+│   │   │   └── main.mm
+│   │   ├── example_sdl3_opengl3
+│   │   │   ├── Makefile
+│   │   │   ├── Makefile.emscripten
+│   │   │   ├── README.md
+│   │   │   ├── build_win32.bat
+│   │   │   ├── build_win64.bat
+│   │   │   ├── example_sdl3_opengl3.vcxproj
+│   │   │   ├── example_sdl3_opengl3.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl3_sdlgpu3
+│   │   │   ├── Makefile
+│   │   │   ├── build_win64.bat
+│   │   │   ├── example_sdl3_sdlgpu3.vcxproj
+│   │   │   ├── example_sdl3_sdlgpu3.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl3_sdlrenderer3
+│   │   │   ├── Makefile
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_sdl3_sdlrenderer3.vcxproj
+│   │   │   ├── example_sdl3_sdlrenderer3.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl3_vulkan
+│   │   │   ├── Makefile
+│   │   │   ├── build_win32.bat
+│   │   │   ├── build_win64.bat
+│   │   │   ├── example_sdl3_vulkan.vcxproj
+│   │   │   ├── example_sdl3_vulkan.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_sdl3_wgpu
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── Makefile.emscripten
+│   │   │   ├── README.md
+│   │   │   └── main.cpp
+│   │   ├── example_win32_directx10
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_win32_directx10.vcxproj
+│   │   │   ├── example_win32_directx10.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_win32_directx11
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_win32_directx11.vcxproj
+│   │   │   ├── example_win32_directx11.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_win32_directx12
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_win32_directx12.vcxproj
+│   │   │   ├── example_win32_directx12.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_win32_directx9
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_win32_directx9.vcxproj
+│   │   │   ├── example_win32_directx9.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_win32_opengl3
+│   │   │   ├── build_mingw.bat
+│   │   │   ├── build_win32.bat
+│   │   │   ├── example_win32_opengl3.vcxproj
+│   │   │   ├── example_win32_opengl3.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── example_win32_vulkan
+│   │   │   ├── build_win32.bat
+│   │   │   ├── build_win64.bat
+│   │   │   ├── example_win32_vulkan.vcxproj
+│   │   │   ├── example_win32_vulkan.vcxproj.filters
+│   │   │   └── main.cpp
+│   │   ├── imgui_examples.sln
+│   │   └── libs
+│   │       ├── emscripten
+│   │       │   ├── emscripten_mainloop_stub.h
+│   │       │   └── shell_minimal.html
+│   │       ├── glfw
+│   │       │   ├── COPYING.txt
+│   │       │   ├── include
+│   │       │   ├── lib-vc2010-32
+│   │       │   └── lib-vc2010-64
+│   │       └── usynergy
+│   │           ├── README.txt
+│   │           ├── uSynergy.c
+│   │           └── uSynergy.h
+│   ├── imconfig.h
+│   ├── imgui.cpp
+│   ├── imgui.h
+│   ├── imgui_demo.cpp
+│   ├── imgui_draw.cpp
+│   ├── imgui_internal.h
+│   ├── imgui_tables.cpp
+│   ├── imgui_widgets.cpp
+│   ├── imstb_rectpack.h
+│   ├── imstb_textedit.h
+│   ├── imstb_truetype.h
+│   └── misc
+│       ├── README.txt
+│       ├── cpp
+│       │   ├── README.txt
+│       │   ├── imgui_stdlib.cpp
+│       │   └── imgui_stdlib.h
+│       ├── debuggers
+│       │   ├── README.txt
+│       │   ├── imgui.gdb
+│       │   ├── imgui.natstepfilter
+│       │   ├── imgui.natvis
+│       │   └── imgui_lldb.py
+│       ├── fonts
+│       │   ├── Cousine-Regular.ttf
+│       │   ├── DroidSans.ttf
+│       │   ├── Karla-Regular.ttf
+│       │   ├── ProggyClean.ttf
+│       │   ├── ProggyTiny.ttf
+│       │   ├── ProggyVector-ExtractScript.txt
+│       │   ├── Roboto-Medium.ttf
+│       │   └── binary_to_compressed_c.cpp
+│       ├── freetype
+│       │   ├── README.md
+│       │   ├── imgui_freetype.cpp
+│       │   └── imgui_freetype.h
+│       └── single_file
+│           └── imgui_single_file.h
+├── imgui.ini
+├── include
+│   ├── backends
+│   └── zxing
+├── install_macos.sh
+├── install_windows.ps1
+├── json.hpp
+├── lib
+├── main.cpp
+├── scanner
+├── src
+├── test.cpp
+├── test2.cpp
+├── third_party
+│   └── zxing-cpp
+│       ├── CMakeLists.txt
+│       ├── LICENSE
+│       ├── Package.swift
+│       ├── README.md
+│       ├── build
+│       │   ├── _deps
+│       │   │   └── stb-src
+│       │   ├── core
+│       │   │   ├── CMakeFiles
+│       │   │   └── libZXing.a
+│       │   └── example
+│       │       ├── CMakeFiles
+│       │       ├── ZXingQtCamReader_autogen
+│       │       └── ZXingQtReader_autogen
+│       ├── core
+│       │   ├── CMakeLists.txt
+│       │   ├── Version.h.in
+│       │   ├── ZXingConfig.cmake.in
+│       │   ├── src
+│       │   │   ├── Barcode.cpp
+│       │   │   ├── Barcode.h
+│       │   │   ├── BarcodeData.h
+│       │   │   ├── BarcodeFormat.cpp
+│       │   │   ├── BarcodeFormat.h
+│       │   │   ├── BinaryBitmap.cpp
+│       │   │   ├── BinaryBitmap.h
+│       │   │   ├── BitArray.cpp
+│       │   │   ├── BitArray.h
+│       │   │   ├── BitHacks.h
+│       │   │   ├── BitMatrix.cpp
+│       │   │   ├── BitMatrix.h
+│       │   │   ├── BitMatrixCursor.h
+│       │   │   ├── BitMatrixIO.cpp
+│       │   │   ├── BitMatrixIO.h
+│       │   │   ├── BitSource.cpp
+│       │   │   ├── BitSource.h
+│       │   │   ├── ByteArray.h
+│       │   │   ├── CharacterSet.cpp
+│       │   │   ├── CharacterSet.h
+│       │   │   ├── ConcentricFinder.cpp
+│       │   │   ├── ConcentricFinder.h
+│       │   │   ├── Content.cpp
+│       │   │   ├── Content.h
+│       │   │   ├── ContentType.h
+│       │   │   ├── CreateBarcode.cpp
+│       │   │   ├── CreateBarcode.h
+│       │   │   ├── DecoderResult.h
+│       │   │   ├── DetectorResult.h
+│       │   │   ├── ECI.cpp
+│       │   │   ├── ECI.h
+│       │   │   ├── Error.cpp
+│       │   │   ├── Error.h
+│       │   │   ├── Flags.h
+│       │   │   ├── GTIN.cpp
+│       │   │   ├── GTIN.h
+│       │   │   ├── Generator.h
+│       │   │   ├── GenericGF.cpp
+│       │   │   ├── GenericGF.h
+│       │   │   ├── GenericGFPoly.cpp
+│       │   │   ├── GenericGFPoly.h
+│       │   │   ├── GlobalHistogramBinarizer.cpp
+│       │   │   ├── GlobalHistogramBinarizer.h
+│       │   │   ├── GridSampler.cpp
+│       │   │   ├── GridSampler.h
+│       │   │   ├── HRI.cpp
+│       │   │   ├── HRI.h
+│       │   │   ├── HybridBinarizer.cpp
+│       │   │   ├── HybridBinarizer.h
+│       │   │   ├── ImageView.h
+│       │   │   ├── JSON.cpp
+│       │   │   ├── JSON.h
+│       │   │   ├── LogMatrix.h
+│       │   │   ├── Matrix.h
+│       │   │   ├── MultiFormatReader.cpp
+│       │   │   ├── MultiFormatReader.h
+│       │   │   ├── MultiFormatWriter.cpp
+│       │   │   ├── MultiFormatWriter.h
+│       │   │   ├── Pattern.h
+│       │   │   ├── PerspectiveTransform.cpp
+│       │   │   ├── PerspectiveTransform.h
+│       │   │   ├── Point.h
+│       │   │   ├── Quadrilateral.h
+│       │   │   ├── Range.h
+│       │   │   ├── ReadBarcode.cpp
+│       │   │   ├── ReadBarcode.h
+│       │   │   ├── Reader.h
+│       │   │   ├── ReaderOptions.h
+│       │   │   ├── ReedSolomonDecoder.cpp
+│       │   │   ├── ReedSolomonDecoder.h
+│       │   │   ├── ReedSolomonEncoder.cpp
+│       │   │   ├── ReedSolomonEncoder.h
+│       │   │   ├── RegressionLine.h
+│       │   │   ├── ResultPoint.cpp
+│       │   │   ├── ResultPoint.h
+│       │   │   ├── Scope.h
+│       │   │   ├── StructuredAppend.h
+│       │   │   ├── SymbologyIdentifier.h
+│       │   │   ├── TextDecoder.cpp
+│       │   │   ├── TextDecoder.h
+│       │   │   ├── TextEncoder.cpp
+│       │   │   ├── TextEncoder.h
+│       │   │   ├── ThresholdBinarizer.h
+│       │   │   ├── TritMatrix.h
+│       │   │   ├── Utf.cpp
+│       │   │   ├── Utf.h
+│       │   │   ├── WhiteRectDetector.cpp
+│       │   │   ├── WhiteRectDetector.h
+│       │   │   ├── WriteBarcode.cpp
+│       │   │   ├── WriteBarcode.h
+│       │   │   ├── ZXAlgorithms.h
+│       │   │   ├── ZXConfig.h
+│       │   │   ├── ZXTestSupport.h
+│       │   │   ├── ZXingC.cpp
+│       │   │   ├── ZXingC.h
+│       │   │   ├── ZXingCpp.cpp
+│       │   │   ├── ZXingCpp.h
+│       │   │   ├── aztec
+│       │   │   ├── datamatrix
+│       │   │   ├── libzint
+│       │   │   ├── libzueci
+│       │   │   ├── maxicode
+│       │   │   ├── oned
+│       │   │   ├── pdf417
+│       │   │   └── qrcode
+│       │   └── zxing.pc.in
+│       ├── example
+│       │   ├── CMakeLists.txt
+│       │   ├── ZXingOpenCV.cpp
+│       │   ├── ZXingOpenCV.h
+│       │   ├── ZXingQt5CamReader.qml
+│       │   ├── ZXingQt6CamReader.qml
+│       │   ├── ZXingQtCamReader.cpp
+│       │   ├── ZXingQtCamReader.qrc
+│       │   ├── ZXingQtReader.cpp
+│       │   ├── ZXingQtReader.h
+│       │   ├── ZXingQtWriter.cpp
+│       │   ├── ZXingReader.cpp
+│       │   └── ZXingWriter.cpp
+│       ├── test
+│       │   ├── blackbox
+│       │   │   ├── BlackboxTestRunner.cpp
+│       │   │   ├── BlackboxTestRunner.h
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── ImageLoader.cpp
+│       │   │   ├── ImageLoader.h
+│       │   │   ├── TestReaderMain.cpp
+│       │   │   ├── TestWriterMain.cpp
+│       │   │   └── ZXFilesystem.h
+│       │   ├── fuzz
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── fuzzDBEDecoder.cpp
+│       │   │   ├── fuzzDMEncoder.cpp
+│       │   │   ├── fuzzDecodeMatrix.cpp
+│       │   │   ├── fuzzReadLinear.cpp
+│       │   │   └── fuzzReadMatrix.cpp
+│       │   ├── samples
+│       │   │   ├── aztec-1
+│       │   │   ├── aztec-2
+│       │   │   ├── codabar-1
+│       │   │   ├── codabar-2
+│       │   │   ├── code128-1
+│       │   │   ├── code128-2
+│       │   │   ├── code128-3
+│       │   │   ├── code39-1
+│       │   │   ├── code39-2
+│       │   │   ├── code39-3
+│       │   │   ├── code93-1
+│       │   │   ├── databarltd-1
+│       │   │   ├── datamatrix-1
+│       │   │   ├── datamatrix-2
+│       │   │   ├── datamatrix-3
+│       │   │   ├── datamatrix-4
+│       │   │   ├── dxfilmedge-1
+│       │   │   ├── ean13-1
+│       │   │   ├── ean13-2
+│       │   │   ├── ean13-3
+│       │   │   ├── ean13-4
+│       │   │   ├── ean13-extension-1
+│       │   │   ├── ean8-1
+│       │   │   ├── falsepositives-1
+│       │   │   ├── falsepositives-2
+│       │   │   ├── itf-1
+│       │   │   ├── itf-2
+│       │   │   ├── maxicode-1
+│       │   │   ├── maxicode-2
+│       │   │   ├── microqrcode-1
+│       │   │   ├── multi-1
+│       │   │   ├── partial
+│       │   │   ├── pdf417-1
+│       │   │   ├── pdf417-2
+│       │   │   ├── pdf417-3
+│       │   │   ├── pdf417-4
+│       │   │   ├── qrcode-1
+│       │   │   ├── qrcode-2
+│       │   │   ├── qrcode-3
+│       │   │   ├── qrcode-4
+│       │   │   ├── qrcode-5
+│       │   │   ├── qrcode-6
+│       │   │   ├── qrcode-7
+│       │   │   ├── rmqrcode-1
+│       │   │   ├── rss14-1
+│       │   │   ├── rss14-2
+│       │   │   ├── rssexpanded-1
+│       │   │   ├── rssexpanded-2
+│       │   │   ├── rssexpanded-3
+│       │   │   ├── rssexpandedstacked-1
+│       │   │   ├── rssexpandedstacked-2
+│       │   │   ├── upca-1
+│       │   │   ├── upca-2
+│       │   │   ├── upca-3
+│       │   │   ├── upca-4
+│       │   │   ├── upca-5
+│       │   │   ├── upca-extension-1
+│       │   │   ├── upce-1
+│       │   │   ├── upce-2
+│       │   │   └── upce-3
+│       │   └── unit
+│       │       ├── BarcodeFormatTest.cpp
+│       │       ├── BitArrayUtility.cpp
+│       │       ├── BitArrayUtility.h
+│       │       ├── BitHacksTest.cpp
+│       │       ├── CMakeLists.txt
+│       │       ├── CharacterSetECITest.cpp
+│       │       ├── ContentTest.cpp
+│       │       ├── ErrorTest.cpp
+│       │       ├── GS1Test.cpp
+│       │       ├── GTINTest.cpp
+│       │       ├── JSONTest.cpp
+│       │       ├── PatternTest.cpp
+│       │       ├── PseudoRandom.h
+│       │       ├── ReedSolomonTest.cpp
+│       │       ├── SanitizerSupport.cpp
+│       │       ├── TextDecoderTest.cpp
+│       │       ├── TextEncoderTest.cpp
+│       │       ├── TextUtfEncodingTest.cpp
+│       │       ├── ThresholdBinarizerTest.cpp
+│       │       ├── WriteBarcodeTest.cpp
+│       │       ├── ZXAlgorithmsTest.cpp
+│       │       ├── aztec
+│       │       ├── datamatrix
+│       │       ├── maxicode
+│       │       ├── oned
+│       │       ├── pdf417
+│       │       └── qrcode
+│       ├── wrappers
+│       │   ├── android
+│       │   │   ├── README.md
+│       │   │   ├── app
+│       │   │   ├── build.gradle.kts
+│       │   │   ├── gradle
+│       │   │   ├── gradle.properties
+│       │   │   ├── gradlew
+│       │   │   ├── gradlew.bat
+│       │   │   ├── settings.gradle.kts
+│       │   │   └── zxingcpp
+│       │   ├── c
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── README.md
+│       │   │   └── ZXingCTest.c
+│       │   ├── dotnet
+│       │   │   ├── README.md
+│       │   │   ├── ZXingCpp
+│       │   │   ├── ZXingCpp.DemoReader
+│       │   │   ├── ZXingCpp.DemoWriter
+│       │   │   ├── ZXingCpp.Tests
+│       │   │   └── dotnet.sln
+│       │   ├── ios
+│       │   │   ├── README.md
+│       │   │   ├── Sources
+│       │   │   └── demo
+│       │   ├── kn
+│       │   │   ├── README.md
+│       │   │   ├── build.gradle.kts
+│       │   │   ├── gradle
+│       │   │   ├── gradle.properties
+│       │   │   ├── gradlew
+│       │   │   ├── gradlew.bat
+│       │   │   ├── settings.gradle.kts
+│       │   │   └── src
+│       │   ├── python
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── LICENSE -> ../../LICENSE
+│       │   │   ├── MANIFEST.in
+│       │   │   ├── README.md
+│       │   │   ├── core -> ../../core
+│       │   │   ├── demo_reader.py
+│       │   │   ├── demo_writer.py
+│       │   │   ├── pyproject.toml
+│       │   │   ├── setup.py
+│       │   │   ├── test.py
+│       │   │   ├── zxing.cmake -> ../../zxing.cmake
+│       │   │   └── zxing.cpp
+│       │   ├── rust
+│       │   │   ├── Cargo.toml
+│       │   │   ├── README.md
+│       │   │   ├── build.rs
+│       │   │   ├── core -> ../../core/
+│       │   │   ├── examples
+│       │   │   ├── rustfmt.toml
+│       │   │   └── src
+│       │   ├── wasm
+│       │   │   ├── BarcodeReader.cpp
+│       │   │   ├── BarcodeWriter.cpp
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── README.md
+│       │   │   ├── demo_cam_reader.html
+│       │   │   ├── demo_reader.html
+│       │   │   └── demo_writer.html
+│       │   └── winrt
+│       │       ├── BarcodeReader.cpp
+│       │       ├── BarcodeReader.h
+│       │       ├── BuildWinCom.bat
+│       │       ├── CMakeLists.txt
+│       │       ├── README.md
+│       │       ├── ReadResult.h
+│       │       ├── TargetArch.cmake
+│       │       ├── Toolchain-Win10.cmake
+│       │       ├── UAP
+│       │       └── nuget
+│       ├── zint
+│       │   ├── CMakeLists.txt
+│       │   ├── ChangeLog
+│       │   ├── LICENSE
+│       │   ├── README
+│       │   ├── README.bsd
+│       │   ├── README.clang-tidy
+│       │   ├── README.linux
+│       │   ├── README.macos
+│       │   ├── README.windows
+│       │   ├── TODO
+│       │   ├── backend
+│       │   │   ├── 2of5.c
+│       │   │   ├── 2of5inter.c
+│       │   │   ├── 2of5inter_based.c
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── DEVELOPER
+│       │   │   ├── Makefile.mingw
+│       │   │   ├── auspost.c
+│       │   │   ├── aztec.c
+│       │   │   ├── aztec.h
+│       │   │   ├── bc412.c
+│       │   │   ├── big5.h
+│       │   │   ├── bmp.c
+│       │   │   ├── bmp.h
+│       │   │   ├── channel.c
+│       │   │   ├── channel_precalcs.h
+│       │   │   ├── codabar.c
+│       │   │   ├── codablock.c
+│       │   │   ├── code.c
+│       │   │   ├── code1.c
+│       │   │   ├── code1.h
+│       │   │   ├── code11.c
+│       │   │   ├── code128.c
+│       │   │   ├── code128.h
+│       │   │   ├── code128_based.c
+│       │   │   ├── code16k.c
+│       │   │   ├── code49.c
+│       │   │   ├── code49.h
+│       │   │   ├── common.c
+│       │   │   ├── common.h
+│       │   │   ├── composite.c
+│       │   │   ├── composite.h
+│       │   │   ├── dllversion.c
+│       │   │   ├── dmatrix.c
+│       │   │   ├── dmatrix.h
+│       │   │   ├── dmatrix_trace.h
+│       │   │   ├── dotcode.c
+│       │   │   ├── dxfilmedge.c
+│       │   │   ├── eci.c
+│       │   │   ├── eci.h
+│       │   │   ├── eci_sb.h
+│       │   │   ├── emf.c
+│       │   │   ├── emf.h
+│       │   │   ├── filemem.c
+│       │   │   ├── filemem.h
+│       │   │   ├── fonts
+│       │   │   ├── gb18030.h
+│       │   │   ├── gb2312.h
+│       │   │   ├── gbk.h
+│       │   │   ├── general_field.c
+│       │   │   ├── general_field.h
+│       │   │   ├── gif.c
+│       │   │   ├── gridmtx.c
+│       │   │   ├── gridmtx.h
+│       │   │   ├── gs1.c
+│       │   │   ├── gs1.h
+│       │   │   ├── gs1_lint.h
+│       │   │   ├── hanxin.c
+│       │   │   ├── hanxin.h
+│       │   │   ├── imail.c
+│       │   │   ├── iso3166.h
+│       │   │   ├── iso4217.h
+│       │   │   ├── ksx1001.h
+│       │   │   ├── large.c
+│       │   │   ├── large.h
+│       │   │   ├── library.c
+│       │   │   ├── libzint.rc
+│       │   │   ├── mailmark.c
+│       │   │   ├── maxicode.c
+│       │   │   ├── maxicode.h
+│       │   │   ├── medical.c
+│       │   │   ├── output.c
+│       │   │   ├── output.h
+│       │   │   ├── pcx.c
+│       │   │   ├── pcx.h
+│       │   │   ├── pdf417.c
+│       │   │   ├── pdf417.h
+│       │   │   ├── pdf417_tabs.h
+│       │   │   ├── pdf417_trace.h
+│       │   │   ├── plessey.c
+│       │   │   ├── png.c
+│       │   │   ├── postal.c
+│       │   │   ├── ps.c
+│       │   │   ├── qr.c
+│       │   │   ├── qr.h
+│       │   │   ├── raster.c
+│       │   │   ├── raster_font.h
+│       │   │   ├── reedsol.c
+│       │   │   ├── reedsol.h
+│       │   │   ├── reedsol_logs.h
+│       │   │   ├── rss.c
+│       │   │   ├── rss.h
+│       │   │   ├── sjis.h
+│       │   │   ├── svg.c
+│       │   │   ├── telepen.c
+│       │   │   ├── tests
+│       │   │   ├── tif.c
+│       │   │   ├── tif.h
+│       │   │   ├── tif_lzw.h
+│       │   │   ├── tools
+│       │   │   ├── ultra.c
+│       │   │   ├── upcean.c
+│       │   │   ├── vector.c
+│       │   │   ├── zfiletypes.h
+│       │   │   ├── zint.h
+│       │   │   └── zintconfig.h
+│       │   ├── backend_qt
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── COPYING
+│       │   │   ├── backend_qt.pro
+│       │   │   ├── backend_qt_zintdll.pro
+│       │   │   ├── backend_vc8.pro
+│       │   │   ├── qzint.cpp
+│       │   │   ├── qzint.h
+│       │   │   └── tests
+│       │   ├── backend_tcl
+│       │   │   ├── Makefile.in
+│       │   │   ├── aclocal.m4
+│       │   │   ├── configure
+│       │   │   ├── configure.ac
+│       │   │   ├── demo
+│       │   │   ├── lib
+│       │   │   ├── licence.txt
+│       │   │   ├── pkgIndex.tcl.in
+│       │   │   ├── readme.txt
+│       │   │   ├── tclconfig
+│       │   │   ├── win
+│       │   │   ├── zint.c
+│       │   │   ├── zint_tcl.vcxproj
+│       │   │   └── zint_tcl.vcxproj.filters
+│       │   ├── cmake
+│       │   │   ├── modules
+│       │   │   └── zint_add_test.cmake
+│       │   ├── cmake_uninstall.cmake.in
+│       │   ├── debian
+│       │   │   ├── changelog
+│       │   │   ├── compat
+│       │   │   ├── control
+│       │   │   ├── copyright
+│       │   │   ├── rules
+│       │   │   ├── source
+│       │   │   ├── zint-devel.install
+│       │   │   ├── zint-qt-devel.install
+│       │   │   ├── zint-qt.install
+│       │   │   └── zint.install
+│       │   ├── docs
+│       │   │   ├── Makefile
+│       │   │   ├── README
+│       │   │   ├── haddock.theme
+│       │   │   ├── images
+│       │   │   ├── inc_before_body_html.html
+│       │   │   ├── inc_before_body_pdf.tex
+│       │   │   ├── inc_header_pdf.tex
+│       │   │   ├── inc_header_txt.tex
+│       │   │   ├── lua-crossrefs
+│       │   │   ├── manual.html
+│       │   │   ├── manual.pmd
+│       │   │   ├── manual.txt
+│       │   │   ├── templates
+│       │   │   ├── zint.1
+│       │   │   ├── zint.1.pmd
+│       │   │   ├── zint_images.sh
+│       │   │   ├── zint_org_uk.py
+│       │   │   └── zint_org_uk.sh
+│       │   ├── extras
+│       │   │   ├── README
+│       │   │   ├── cuecat.c
+│       │   │   ├── daft.c
+│       │   │   ├── ida_2d.c
+│       │   │   ├── kartrak.c
+│       │   │   ├── stroke.c
+│       │   │   ├── sunburst.c
+│       │   │   └── zebu_pdf.c
+│       │   ├── frontend
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── COPYING
+│       │   │   ├── Makefile.mingw
+│       │   │   ├── isotest.sh
+│       │   │   ├── main.c
+│       │   │   ├── test.sh
+│       │   │   ├── tests
+│       │   │   ├── zint.rc
+│       │   │   └── zint_black.ico
+│       │   ├── frontend_qt
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── COPYING
+│       │   │   ├── HOWTO_BUILD_STANDALONE_MSVC2015.txt
+│       │   │   ├── Inno_Setup_qtzint.iss
+│       │   │   ├── barcodeitem.cpp
+│       │   │   ├── barcodeitem.h
+│       │   │   ├── cliwindow.cpp
+│       │   │   ├── cliwindow.h
+│       │   │   ├── datawindow.cpp
+│       │   │   ├── datawindow.h
+│       │   │   ├── exportwindow.cpp
+│       │   │   ├── exportwindow.h
+│       │   │   ├── extCLI.ui
+│       │   │   ├── extData.ui
+│       │   │   ├── extExport.ui
+│       │   │   ├── extScale.ui
+│       │   │   ├── extSequence.ui
+│       │   │   ├── frontend_qt.pro
+│       │   │   ├── frontend_qt_zintdll.pro
+│       │   │   ├── frontend_vc8.pro
+│       │   │   ├── grpAztec.ui
+│       │   │   ├── grpC11.ui
+│       │   │   ├── grpC128.ui
+│       │   │   ├── grpC16k.ui
+│       │   │   ├── grpC25.ui
+│       │   │   ├── grpC39.ui
+│       │   │   ├── grpC49.ui
+│       │   │   ├── grpC93.ui
+│       │   │   ├── grpChannel.ui
+│       │   │   ├── grpCodabar.ui
+│       │   │   ├── grpCodablockF.ui
+│       │   │   ├── grpCodeOne.ui
+│       │   │   ├── grpDAFT.ui
+│       │   │   ├── grpDBExtend.ui
+│       │   │   ├── grpDM.ui
+│       │   │   ├── grpDPD.ui
+│       │   │   ├── grpDotCode.ui
+│       │   │   ├── grpEANAddOn.ui
+│       │   │   ├── grpGrid.ui
+│       │   │   ├── grpHX.ui
+│       │   │   ├── grpITF14.ui
+│       │   │   ├── grpMQR.ui
+│       │   │   ├── grpMSICheck.ui
+│       │   │   ├── grpMailmark2D.ui
+│       │   │   ├── grpMaxicode.ui
+│       │   │   ├── grpMicroPDF.ui
+│       │   │   ├── grpPDF417.ui
+│       │   │   ├── grpPZN.ui
+│       │   │   ├── grpPlessey.ui
+│       │   │   ├── grpQR.ui
+│       │   │   ├── grpRMQR.ui
+│       │   │   ├── grpUPCA.ui
+│       │   │   ├── grpUPCEAN.ui
+│       │   │   ├── grpUPNQR.ui
+│       │   │   ├── grpUltra.ui
+│       │   │   ├── grpVIN.ui
+│       │   │   ├── images
+│       │   │   ├── mac_icons.sh
+│       │   │   ├── main.cpp
+│       │   │   ├── mainWindow.ui
+│       │   │   ├── mainwindow.cpp
+│       │   │   ├── mainwindow.h
+│       │   │   ├── res
+│       │   │   ├── resources.qrc
+│       │   │   ├── scalewindow.cpp
+│       │   │   ├── scalewindow.h
+│       │   │   ├── sequencewindow.cpp
+│       │   │   ├── sequencewindow.h
+│       │   │   └── zint-qt.icns
+│       │   ├── getopt
+│       │   │   ├── CMakeLists.txt
+│       │   │   ├── getopt.c
+│       │   │   ├── getopt.h
+│       │   │   └── getopt1.c
+│       │   ├── tools
+│       │   │   └── update_version.php
+│       │   ├── win32
+│       │   │   ├── README
+│       │   │   ├── libzint.vcxproj
+│       │   │   ├── test.bat
+│       │   │   ├── vs2008
+│       │   │   ├── vs2015
+│       │   │   ├── vs2017
+│       │   │   ├── vs2019
+│       │   │   ├── zint.sln
+│       │   │   ├── zint.vcxproj
+│       │   │   ├── zint_cmdline_vc6
+│       │   │   └── zint_dll_vc6
+│       │   ├── zint-config.cmake.in
+│       │   ├── zint-qt.desktop
+│       │   ├── zint-qt.png
+│       │   ├── zint.nsi
+│       │   └── zint.spec
+│       ├── zxing-cpp.podspec
+│       └── zxing.cmake
+└── tree.txt
+
+218 directories, 717 files
