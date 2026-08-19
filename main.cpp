@@ -3,13 +3,13 @@
 #include <vector>
 #include <map>
 #include <opencv2/opencv.hpp>
-#include <ZXing/ReadBarcode.h>
-#include <ZXing/Barcode.h>
+#include <ReadBarcode.h>
+#include <Barcode.h>
 #include <iostream>
-#include <ZXing/ReaderOptions.h>
+#include <ReaderOptions.h>
 #include <unordered_set>
 #include <chrono>
-#include <ZXing/GTIN.h>
+#include <GTIN.h>
 #include <algorithm>
 #include <sstream>
 #include "httplib.h"

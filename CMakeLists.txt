@@ -8,8 +8,23 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(OpenCV REQUIRED IMPORTED_TARGET opencv4)
-pkg_check_modules(ZXing REQUIRED IMPORTED_TARGET zxing)
 pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
+
+find_package(ZXing 2.3 CONFIG QUIET)
+if(NOT TARGET ZXing::ZXing)
+    include(FetchContent)
+    set(ZXING_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(ZXING_BLACKBOX_TESTS OFF CACHE BOOL "" FORCE)
+    set(ZXING_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+    set(ZXING_WRITERS OFF CACHE STRING "" FORCE)
+    FetchContent_Declare(
+        zxing-cpp
+        GIT_REPOSITORY https://github.com/zxing-cpp/zxing-cpp.git
+        GIT_TAG v2.3.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(zxing-cpp)
+endif()
 
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp")
     message(FATAL_ERROR "ImGui is missing. Run: git submodule update --init --recursive")
@@ -33,7 +48,7 @@ target_include_directories(scanner PRIVATE
 
 target_link_libraries(scanner PRIVATE
     PkgConfig::OpenCV
-    PkgConfig::ZXing
+    ZXing::ZXing
     PkgConfig::GLFW
     OpenGL::GL
 )

@@ -25,7 +25,7 @@ The verified development target is macOS with:
 - a C++17 compiler;
 - CMake 3.16 or newer;
 - OpenCV;
-- ZXing-C++;
+- ZXing-C++ 2.3 or network access for CMake to fetch the pinned source;
 - GLFW;
 - pkg-config;
 - camera permission for the terminal or built executable.
@@ -35,6 +35,8 @@ Install dependencies with Homebrew:
 ```bash
 brew install cmake opencv zxing-cpp glfw pkg-config
 ```
+
+If ZXing-C++ 2.3 is not installed, CMake downloads and builds the pinned `v2.3.0` source automatically. This avoids silently compiling against older system packages with an incompatible API.
 
 ## Checkout
 
